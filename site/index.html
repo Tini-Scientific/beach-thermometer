@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beach Thermometer</title>
+<meta name="description" content="Real-time water temperature at California's offshore buoys, compared with each buoy's 1991–2020 climatology.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Tini colors, as in the Magnuson Park draft map (BoB_261028) */
+:root {
+    --federal-blue: #1E0253; --fandango: #C637A0; --silver: #BCB1A9; --light-red: #FF717C;
+    --status-orange: #F28C28; --status-blue: #007AFF;
+}
+html, body { margin: 0; height: 100%; background: #1a1a1a; }
+#map { position: absolute; inset: 0; }
+.bt-font { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; }
+
+/* info panel, bottom left */
+.bt-stats {
+    position: fixed; bottom: 30px; left: 30px; z-index: 1000;
+    background: rgba(30,2,83,0.92); padding: 14px 20px; border-radius: 10px;
+    border: 1px solid var(--fandango); color: white; min-width: 210px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.bt-logo { height: 40px; width: auto; display: block; margin-bottom: 8px; }
+.bt-header {
+    font-size: 11px; font-weight: 600; color: var(--silver); letter-spacing: 0.04em;
+    margin-bottom: 10px; border-bottom: 1px solid var(--fandango); padding-bottom: 6px;
+}
+.bt-table { width: 100%; border-spacing: 0 6px; }
+.bt-label { color: var(--silver); font-size: 11px; }
+.bt-value { font-size: 15px; font-weight: 700; text-align: right; }
+
+/* unit toggle (Leaflet control) */
+.bt-unit-btn {
+    background: white; border: none; display: block; width: 100%; padding: 6px 14px; cursor: pointer;
+    text-align: center; font-size: 11px; font-weight: 600; color: #444; letter-spacing: 0.04em; line-height: 1.5;
+}
+.bt-unit-btn:hover { background: #f4f4f4; color: var(--federal-blue); }
+.bt-imperial { display: none; }
+body.imperial .bt-metric { display: none; }
+body.imperial .bt-imperial { display: inline; }
+
+/* popup */
+.bt-popup { width: 460px; }
+.bt-name { color: var(--federal-blue); font-size: 19px; font-weight: 700; }
+.bt-sub { color: #888; font-size: 13px; }
+.bt-temp { color: var(--fandango); font-size: 26px; font-weight: 700; }
+.bt-note { color: #888; font-size: 13px; }
+.bt-when { color: #555; font-size: 13px; }
+.bt-anom { color: var(--federal-blue); font-size: 14px; font-weight: 600; }
+.bt-status { font-size: 14px; font-weight: 700; }
+.bt-seg { display: flex; margin: 10px 0 6px 0; }
+.bt-window {
+    flex: 1; font-family: inherit; font-size: 13px; font-weight: 600; padding: 5px 0; cursor: pointer;
+    border: 1px solid var(--fandango); border-left-width: 0; background: white; color: var(--fandango);
+}
+.bt-window:first-child { border-left-width: 1px; border-radius: 12px 0 0 12px; }
+.bt-window:last-child { border-radius: 0 12px 12px 0; }
+.bt-window.on { background: var(--fandango); color: white; }
+.bt-chart { position: relative; width: 460px; height: 260px; }
+.bt-chart-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
+.bt-toggle-box { display: inline-block; text-align: center; margin: 6px 4px 0 0; }
+.bt-toggle {
+    font-family: inherit; font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--federal-blue); background: white; color: var(--federal-blue); margin-bottom: 1px;
+}
+.bt-toggle.on { background: var(--federal-blue); color: white; }
+.bt-source { display: block; font-size: 11px; color: #888; text-decoration: underline; }
+.bt-download { color: var(--federal-blue); font-weight: 600; font-size: 14px; text-decoration: underline; }
+.leaflet-popup-content { margin: 14px 16px; }
+
+@media (max-width: 540px) {
+    .bt-popup, .bt-chart { width: 300px; }
+    .bt-chart { height: 200px; }
+    .bt-stats { left: 10px; bottom: 20px; padding: 8px 12px; min-width: 160px; }
+    .bt-logo { height: 26px; margin-bottom: 4px; }
+    .bt-value { font-size: 13px; }
+    .bt-name { font-size: 17px; }
+    .bt-temp { font-size: 22px; }
+}
+</style>
+</head>
+<body class="bt-font">
+<div id="map"></div>
+<div class="bt-stats bt-font">
+  <img src="assets/logo.png" class="bt-logo" alt="Tini Scientific">
+  <div class="bt-header">Real-time Water Temperature</div>
+  <table class="bt-table">
+    <tr><td class="bt-label">Buoys reporting</td><td class="bt-value" id="bt-n-reporting">–</td></tr>
+    <tr><td class="bt-label">Suspected marine heatwaves</td><td class="bt-value" id="bt-n-heatwave" style="color:var(--light-red);">–</td></tr>
+    <tr><td class="bt-label">Updated</td><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>
+  </table>
+</div>
+<script>
+// ---- settings -------------------------------------------------------------
+const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', lightRed: '#FF717C',
+                orange: '#F28C28', blue: '#007AFF', noData: '#9E9E9E'};
+// climatology bands as pale solid tints (mixed with white) so legend swatches match
+const BAND_HOT = 'rgb(253, 238, 223)', BAND_COLD = 'rgb(224, 239, 255)';
+const WINDOWS = {day: ['Day', 1], week: ['Week', 7], d45: ['45 days', 45]};
+const DEFAULT_WINDOW = 'd45';
+const TZ = 'America/Los_Angeles';
+const NDBC = 'https://www.ndbc.noaa.gov';
+Chart.defaults.font.family = "'Montserrat', 'Helvetica Neue', sans-serif";
+
+// ---- state ----------------------------------------------------------------
+let latest = null;
+const stationData = {};   // id -> fetched stations/{id}.json
+const chartState = {};    // id -> {win, clim}
+const charts = {};        // id -> Chart instance
+const imperial = () => document.body.classList.contains('imperial');
+const conv = c => (c == null ? null : imperial() ? c * 9 / 5 + 32 : c);
+const unit = () => (imperial() ? '°F' : '°C');
+
+// ---- helpers --------------------------------------------------------------
+function bothUnits(c, signed = false) {
+    const f = signed ? c * 9 / 5 : c * 9 / 5 + 32;
+    const s = v => (signed && v >= 0 ? '+' : '') + v.toFixed(1);
+    return `<span class="bt-metric">${s(c)} °C</span><span class="bt-imperial">${s(f)} °F</span>`;
+}
+// age flag after the last temperature, recomputed against the viewer's clock
+function ageFlag(ms) {
+    const h = (Date.now() - ms) / 3.6e6;
+    return h < 1 ? '&lt; 1 hour' : h < 24 ? '&lt; 1 day' : h < 24 * 7 ? '&gt; 1 day'
+         : h < 24 * 30 ? '&gt; 1 week' : '&gt; 1 month';
+}
+function pacific(ms, opts) {
+    return new Date(ms).toLocaleString('en-US', Object.assign({timeZone: TZ}, opts));
+}
+// day of year (1-366) of a UTC instant, matching pandas' dayofyear
+function dayOfYear(ms) {
+    const d = new Date(ms);
+    return Math.floor((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+                       - Date.UTC(d.getUTCFullYear(), 0, 1)) / 864e5) + 1;
+}
+
+// a streak that runs the whole record (latest.recent_days) may have started earlier: '45+'
+const streakDays = (s, n) => (s.streak_is_whole_record ? `${latest.recent_days}+` : n);
+
+const STATUS = {
+    heatwave: s => [`suspected marine heatwave (${streakDays(s, s.hot_days)} days above 90th pct.)`, COLORS.lightRed],
+    coldspell: s => [`suspected marine cold spell (${streakDays(s, s.cold_days)} days below 10th pct.)`, COLORS.blue],
+    warmer: () => ['warmer than usual', COLORS.orange],
+    cooler: () => ['cooler than usual', COLORS.blue],
+    normal: () => ['near normal', '#555'],
+};
+
+function popupHtml(s) {
+    const head = `<div class="bt-name">${s.name}</div>`
+               + `<div class="bt-sub">NDBC ${s.id} · ${s.ndbc_name}</div><br>`;
+    const stationLink = `<a class="bt-download" href="${NDBC}/station_page.php?station=${s.id}" target="_blank">NDBC station page</a>`;
+    if (s.last_c == null) {
+        return `<div class="bt-popup">${head}<span class="bt-note">No water temperature reported in the past `
+             + `${latest.recent_days} days.</span><br><br>${stationLink}</div>`;
+    }
+    const [statusText, statusColor] = STATUS[s.status](s);
+    const when = pacific(s.last_time_ms, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric',
+                                          minute: '2-digit', timeZoneName: 'short'});
+    const seg = Object.entries(WINDOWS).map(([k, [label]]) =>
+        `<button class="bt-window${k === DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" `
+        + `onclick="btWindow('${s.id}', '${k}', this)">${label}</button>`).join('');
+    return `<div class="bt-popup">${head}`
+        + `<span style="font-size:13px;">&#127777;</span> <span class="bt-temp">${bothUnits(s.last_c)}</span>`
+        + `<span class="bt-note"> last recorded water temp (<span class="bt-age" data-t="${s.last_time_ms}">`
+        + `${ageFlag(s.last_time_ms)}</span>)</span><br>`
+        + `<span class="bt-when">${when}</span><br><br>`
+        + `<span class="bt-anom">${bothUnits(s.anom_c, true)} from climatology (past 24 h)</span><br>`
+        + `<span class="bt-status" style="color:${statusColor};">&ndash; ${statusText}</span>`
+        + `<div class="bt-seg">${seg}</div>`
+        + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}"></canvas>`
+        + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
+        + `<span class="bt-toggle-box"><button class="bt-toggle" onclick="btClim('${s.id}', this)">Climatology</button>`
+        + `<a class="bt-source" href="${NDBC}/station_history.php?station=${s.id}" target="_blank" `
+        + `title="Daily mean, 10th and 90th percentile from this buoy's ${latest.clim_years[0]}–${latest.clim_years[1]} `
+        + `NDBC archive (median ${s.n_years} years per day)">source</a></span><br><br>`
+        + `<a class="bt-download" href="data/stations/${s.id}.csv" download="NDBC_${s.id}_water_temp.csv">Download data here</a>`
+        + ` <span class="bt-note">· Data: </span><a class="bt-source" style="display:inline;" `
+        + `href="${NDBC}/station_page.php?station=${s.id}" target="_blank">NOAA NDBC ${s.id}</a>`
+        + `</div>`;
+}
+
+// ---- chart ----------------------------------------------------------------
+// x ticks at local (Pacific) midnights / 6-hour marks
+function pacificTicks(t0, t1, stepMs) {
+    const now = new Date();
+    const off = new Date(now.toLocaleString('en-US', {timeZone: TZ})) - new Date(now.toLocaleString('en-US', {timeZone: 'UTC'}));
+    const ticks = [];
+    for (let v = Math.ceil((t0 + off) / stepMs) * stepMs - off; v <= t1; v += stepMs) ticks.push({value: v});
+    return ticks;
+}
+
+function drawChart(id) {
+    const d = stationData[id], st = chartState[id];
+    const canvas = document.getElementById(`bt-canvas-${id}`);
+    if (!d || !canvas) return;
+    if (charts[id]) charts[id].destroy();
+    const days = WINDOWS[st.win][1];
+    const t1 = Date.now(), t0 = t1 - days * 864e5;
+    const temp = [];
+    d.t.forEach((t, i) => { if (t >= t0) temp.push({x: t, y: conv(d.c[i])}); });
+    // climatology at each UTC midnight in the window (plus the next one)
+    const mean = [], p10 = [], p90 = [];
+    for (let t = Math.floor(t0 / 864e5) * 864e5; t <= t1 + 864e5; t += 864e5) {
+        const k = dayOfYear(t) - 1;
+        mean.push({x: t, y: conv(d.clim_mean[k])});
+        p10.push({x: t, y: conv(d.clim_p10[k])});
+        p90.push({x: t, y: conv(d.clim_p90[k])});
+    }
+    // order: higher draws first (underneath), so the buoy line (order 0) sits on top of the bands
+    const band = {pointRadius: 0, borderWidth: 0, hidden: !st.clim, order: 2, pointStyle: 'rect'};
+    const narrow = window.innerWidth < 540;
+    const step = days === 1 ? 6 * 3.6e6 : days === 7 ? (narrow ? 2 : 1) * 864e5 : (narrow ? 14 : 7) * 864e5;
+    const tickLabel = v => days === 1 ? pacific(v, {hour: 'numeric'})
+                                      : pacific(v, {month: 'short', day: 'numeric'});
+    document.getElementById(`bt-msg-${id}`).textContent = temp.length ? '' : `No data in the past ${WINDOWS[st.win][0].toLowerCase()}`;
+    charts[id] = new Chart(canvas, {
+        type: 'line',
+        data: {datasets: [
+            Object.assign({label: 'Normal to 90th pct.', data: p90, backgroundColor: BAND_HOT, fill: '+1'}, band),
+            {label: 'Climatology', data: mean, borderColor: '#737373', borderDash: [5, 4], borderWidth: 1.2,
+             pointRadius: 0, fill: false, hidden: !st.clim, order: 1, pointStyle: 'line'},
+            Object.assign({label: 'Normal to 10th pct.', data: p10, backgroundColor: BAND_COLD, fill: '-1'}, band),
+            {label: 'Buoy', data: temp, borderColor: COLORS.fandango, borderWidth: 1.6, pointRadius: 0,
+             spanGaps: 3 * 3.6e6, fill: false, order: 0, pointStyle: 'line'},
+        ]},
+        options: {
+            animation: false, responsive: true, maintainAspectRatio: false,
+            interaction: {mode: 'nearest', axis: 'x', intersect: false},
+            scales: {
+                x: {type: 'linear', min: t0, max: t1, grid: {display: false},
+                    afterBuildTicks: axis => { axis.ticks = pacificTicks(t0, t1, step); },
+                    ticks: {callback: tickLabel, color: '#555', font: {size: 11}, maxRotation: 0}},
+                y: {title: {display: true, text: `Water temp (${unit()})`, color: '#555', font: {size: 12}},
+                    grid: {color: '#eee'}, ticks: {color: '#555', font: {size: 11}}},
+            },
+            plugins: {
+                legend: {display: st.clim, position: 'bottom',
+                         labels: {usePointStyle: true, boxWidth: 14, font: {size: 11}, color: '#444'}},
+                tooltip: {callbacks: {
+                    title: items => pacific(items[0].parsed.x, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}),
+                    label: item => `${item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit()}`}},
+            },
+        },
+    });
+}
+
+async function openChart(id) {
+    chartState[id] = {win: DEFAULT_WINDOW, clim: false};  // matches the freshly drawn popup buttons
+    if (!stationData[id]) {
+        try {
+            stationData[id] = await (await fetch(`data/stations/${id}.json`, {cache: 'no-cache'})).json();
+        } catch (e) {
+            document.getElementById(`bt-msg-${id}`).textContent = 'Could not load data';
+            return;
+        }
+    }
+    drawChart(id);
+}
+
+function btWindow(id, win, btn) {
+    chartState[id].win = win;
+    btn.parentElement.querySelectorAll('.bt-window').forEach(b => b.classList.toggle('on', b === btn));
+    drawChart(id);
+}
+function btClim(id, btn) {
+    chartState[id].clim = !chartState[id].clim;
+    btn.classList.toggle('on', chartState[id].clim);
+    drawChart(id);
+}
+function btToggleUnits() {
+    const isImp = document.body.classList.toggle('imperial');
+    document.querySelectorAll('.bt-unit-btn').forEach(b => { b.textContent = isImp ? 'Imperial [°F]' : 'Metric [°C]'; });
+    Object.keys(charts).forEach(id => { if (document.getElementById(`bt-canvas-${id}`)) drawChart(id); });
+}
+
+// ---- map ------------------------------------------------------------------
+const esri = path => `https://server.arcgisonline.com/ArcGIS/rest/services/${path}/MapServer/tile/{z}/{y}/{x}`;
+const baseLayers = {
+    'Roads': L.tileLayer(esri('World_Street_Map'), {attribution: 'Esri World Street Map', maxZoom: 19}),
+    'Ocean / Bathymetry': L.tileLayer(esri('Ocean/World_Ocean_Base'), {attribution: 'Esri World Ocean Base', maxZoom: 13}),
+    'Satellite': L.tileLayer(esri('World_Imagery'), {attribution: 'Esri World Imagery', maxZoom: 19}),
+};
+const map = L.map('map', {layers: [baseLayers['Ocean / Bathymetry']]}).setView([36.6, -121.5], 6);
+L.control.layers(baseLayers, null, {collapsed: window.innerWidth < 540}).addTo(map);
+const UnitCtrl = L.Control.extend({
+    options: {position: 'topright'},
+    onAdd: () => {
+        const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        div.style.marginTop = '6px';
+        div.innerHTML = '<button class="bt-unit-btn bt-font" onclick="btToggleUnits()">Metric [°C]</button>';
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+    },
+});
+map.addControl(new UnitCtrl());
+// charts drawn before Montserrat finished loading fall back to another font; redraw once it's in
+document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
+    if (document.getElementById(`bt-canvas-${id}`)) drawChart(id);
+}));
+
+fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
+    latest = data;
+    const reporting = data.stations.filter(s => s.last_c != null);
+    document.getElementById('bt-n-reporting').textContent = `${reporting.length} of ${data.stations.length}`;
+    document.getElementById('bt-n-heatwave').textContent = data.stations.filter(s => s.status === 'heatwave').length;
+    document.getElementById('bt-updated').textContent = pacific(data.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
+    data.stations.forEach(s => {
+        const has = s.last_c != null;
+        const m = L.circleMarker([s.lat, s.lon], {radius: 11, color: 'white', weight: 2, fillOpacity: 0.9,
+                                                  fillColor: has ? COLORS.fandango : COLORS.noData}).addTo(map);
+        m.bindTooltip(has ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
+                          : `${s.name}: no recent water temperature`, {className: 'bt-font'});
+        // pan popups clear of the zoom / layer / unit controls along the top
+        m.bindPopup(() => popupHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
+                                         autoPanPaddingBottomRight: [10, 10]});
+        m.on('popupopen', e => {
+            e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.innerHTML = ageFlag(Number(el.dataset.t)); });
+            if (has) openChart(s.id);
+        });
+        // ?station=46026 opens that buoy's popup (shareable links)
+        if (new URLSearchParams(location.search).get('station') === s.id) m.openPopup();
+    });
+}).catch(() => {
+    document.getElementById('bt-updated').textContent = 'data unavailable';
+});
+</script>
+</body>
+</html>
