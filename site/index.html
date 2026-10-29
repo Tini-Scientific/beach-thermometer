@@ -91,7 +91,6 @@ body.imperial .bt-imperial { display: inline; }
 .bt-window.on { background: var(--fandango); color: white; }
 .bt-chart { position: relative; width: 460px; height: 260px; }
 .bt-chart-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
-.bt-toggle-box { display: inline-block; text-align: center; margin: 6px 4px 0 0; }
 .bt-toggle {
     font-family: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer;
     border: 1px solid var(--federal-blue); background: white; color: var(--federal-blue); margin-bottom: 1px;
@@ -201,13 +200,12 @@ function popupHtml(s) {
         + `<div class="bt-seg">${seg}</div>`
         + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}"></canvas>`
         + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
-        + `<span class="bt-toggle-box"><button class="bt-toggle" onclick="btClim('${s.id}', this)">Climatology</button>`
-        + `<a class="bt-source" href="${NDBC}/station_history.php?station=${s.id}" target="_blank" `
+        + `<button class="bt-toggle" style="margin-top:6px;" onclick="btClim('${s.id}', this)" `
         + `title="Daily mean, 10th and 90th percentile from this buoy's ${latest.clim_years[0]}–${latest.clim_years[1]} `
-        + `NDBC archive (median ${s.n_years} years per day)">source</a></span><br><br>`
+        + `NDBC archive (median ${s.n_years} years per day)">Climatology</button><br><br>`
         + `<a class="bt-download" href="data/stations/${s.id}.csv" download="NDBC_${s.id}_water_temp.csv">Download data here</a>`
-        + ` <span class="bt-note">· Data: </span><a class="bt-source" style="display:inline;" `
-        + `href="${NDBC}/station_page.php?station=${s.id}" target="_blank">NOAA NDBC ${s.id}</a>`
+        + ` <span class="bt-note">·</span> <a class="bt-source" style="display:inline;" `
+        + `href="${NDBC}/station_page.php?station=${s.id}" target="_blank" title="NOAA NDBC station ${s.id}">Data source</a>`
         + `</div>`;
 }
 
