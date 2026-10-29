@@ -72,7 +72,7 @@ body { display: flex; flex-direction: column; }
 
 /* station markers (map and list, inline SVG drawn by markerHtml): the shape is the
    type (NDBC offshore buoys diamonds, CDIP wave buoys circles, IOOS moorings
-   pentagons), the fill is the latest temperature on cmocean's thermal colormap
+   pentagons, NOAA tide stations squares), the fill is the latest temperature on cmocean's thermal colormap
    (40-80 °F, color bar top right), gray when no data; a thick red outline with a
    pulsing ring for a suspected marine heatwave */
 .bt-mk-wrap { display: flex; align-items: center; justify-content: center; }
@@ -165,7 +165,7 @@ body.imperial .bt-imperial { display: inline; }
 <body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
 <header class="bt-page-header bt-font">
   <h1>Beach Thermometer</h1>
-  <p>Live sea-surface temperatures from California's buoys and moorings, together on one map, so you can watch marine heatwaves unfold.</p>
+  <p>Live sea-surface temperatures from California's buoys, moorings and tide stations, together on one map, so you can watch marine heatwaves unfold.</p>
 </header>
 <div id="map"></div>
 <div class="bt-stats bt-font">
@@ -246,12 +246,15 @@ const STATUS = {
 
 // popup subtitle and "Data: CDIP 215 / NDBC 46256" links by station type
 const buoyLabel = s => ({cdip: `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}`, ndbc: `Offshore buoy · NDBC ${s.id}`,
-                         ioos: `Mooring · ${s.operator} · surface sensor at ${s.depth_m} m`})[s.type]
+                         ioos: `Mooring · ${s.operator} · surface sensor at ${s.depth_m} m`,
+                         tide: `Tide station · NOAA CO-OPS ${s.coops} / NDBC ${s.id}`})[s.type]
                      + (s.long_name ? ` · ${s.long_name}` : '');
 const link = (href, text) => `<a class="bt-source" style="display:inline;" href="${href}" target="_blank">${text}</a>`;
 const dataLinks = s => `<span class="bt-data">Data: `
     + (s.type === 'ioos' ? link(`https://erddap.sensors.ioos.us/erddap/tabledap/${s.id}.html`, 'IOOS sensor catalog')
-       : (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / ' : '')
+       : (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / '
+          : s.type === 'tide' ? link(`https://tidesandcurrents.noaa.gov/stationhome.html?id=${s.coops}`, `CO-OPS ${s.coops}`) + ' / '
+          : '')
          + link(`${NDBC}/station_page.php?station=${s.id}`, `NDBC ${s.id}`)) + `</span>`;
 
 function popupHtml(s) {
@@ -426,16 +429,18 @@ document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
 // from today's climatology (past 24 h), sorted north to south or A–Z; the
 // type buttons at the top are the legend and filter the list and the map.
 // Clicking a row opens that buoy's popup. Starts collapsed on phones.
-const TYPES = {ndbc: 'Offshore buoys (NDBC)', cdip: 'Wave buoys (CDIP)', ioos: 'Moorings (IOOS)'};
+const TYPES = {ndbc: 'Offshore buoys (NDBC)', cdip: 'Wave buoys (CDIP)', ioos: 'Moorings (IOOS)',
+               tide: 'Tide stations (NOAA)'};
 const markers = {};
 let stationList = [];
 const hiddenTypes = new Set();
-// marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC) or pentagon (IOOS), radius r
+// marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC), pentagon (IOOS) or square (tide), radius r
 function shape(type, r, attrs) {
     if (type === 'cdip') return `<circle cx="12" cy="12" r="${r}" ${attrs}/>`;
-    const n = type === 'ndbc' ? 4 : 5;
+    const n = type === 'ioos' ? 5 : 4;
+    const start = type === 'tide' ? -Math.PI / 4 : -Math.PI / 2;  // square vs diamond
     const pts = Array.from({length: n}, (_, k) => {
-        const a = -Math.PI / 2 + 2 * Math.PI * k / n;
+        const a = start + 2 * Math.PI * k / n;
         return `${(12 + r * Math.cos(a)).toFixed(2)},${(12 + r * Math.sin(a)).toFixed(2)}`;
     }).join(' ');
     return `<polygon points="${pts}" ${attrs}/>`;
@@ -445,7 +450,7 @@ function shape(type, r, attrs) {
 // still read, plus a pulsing red ring on the map.
 function markerHtml(s, inList = false) {
     const hw = s.status === 'heatwave';
-    const r = ({cdip: 6.5, ndbc: 8, ioos: 7.5})[s.type];
+    const r = ({cdip: 6.5, ndbc: 8, ioos: 7.5, tide: 8})[s.type];
     // legend symbols (s.legend) are neutral: color means temperature, shape means type
     const fill = s.legend ? '#d9d9d9' : s.last_c == null ? COLORS.noData : tempColor(s.last_c);
     const red = inList ? '#FF5A6A' : COLORS.heatwave;

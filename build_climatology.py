@@ -8,8 +8,8 @@ as in Hobday et al. 2016's marine heatwave definition), then smoothed with a
 SMOOTH_DAYS (31-day) running mean that wraps around the year end, also as in
 Hobday et al., so short records don't give a jumpy climatology.
 
-Stations: California's NDBC offshore buoys, CDIP wave buoys and IOOS moorings
-that reported water temperature in the past year (the same stations as
+Stations: California's NDBC offshore buoys, CDIP wave buoys, IOOS moorings and
+NOAA CO-OPS tide stations that reported water temperature in the past year (the same stations as
 BoB_261028's CA_WaterTemp_SideBySide.png). Moorings are included only if they
 have a surface sensor (top 3 m, see ioos.py), to match the buoys; that leaves
 out CCE Mooring 4 (21 m) and the Orange County mini-mooring (20 m). The
@@ -23,8 +23,9 @@ none (the site then shows the temperature without a climatology). NDBC's
 archive of CDIP buoys starts in 2004, so the older CDIP buoys use 2004-2020
 and the newer ones their whole record.
 
-Buoy water temperature comes from NDBC's yearly standard-meteorological
-archives (CDIP buoys are archived there under their NDBC numbers); mooring
+Buoy and tide-station water temperature comes from NDBC's yearly
+standard-meteorological archives (CDIP buoys and CO-OPS tide stations are
+archived there under their NDBC IDs; NDBC's CO-OPS archive starts in 2005); mooring
 water temperature from the IOOS ERDDAP server as daily means over the whole
 record. Both are cached in data/historical/ (not committed). Re-run only to add stations or change the
 method.
@@ -58,6 +59,25 @@ CDIP_STATIONS = {'46244': ('168', 'Humboldt Bay North Spit'), '46213': ('094', '
                  '46274': ('262', 'Leucadia'), '46266': ('153', 'Del Mar'), '46225': ('100', 'Torrey Pines Outer'),
                  '46254': ('201', 'Scripps Nearshore'), '46258': ('220', 'Mission Bay West'),
                  '46235': ('155', 'Imperial Beach'), '46232': ('191', 'Point Loma South')}
+
+# NOAA CO-OPS tide stations (water temperature sensor on the tide gauge, ~1-2 m below
+# low water): NDBC ID -> (CO-OPS station number, short name, lat, lon). Names differ from
+# CO-OPS's where they'd repeat a buoy's (San Francisco, Point Reyes, North Spit).
+TIDE_STATIONS = {'CECC1': ('9419750', 'Crescent City Harbor', 41.746, -124.184),
+                 'HBYC1': ('9418767', 'Humboldt Bay (North Spit)', 40.766, -124.217),
+                 'ANVC1': ('9416841', 'Arena Cove', 38.915, -123.711),
+                 'PCOC1': ('9415144', 'Port Chicago', 38.056, -122.04),
+                 'MZXC1': ('9415102', 'Martinez-Amorco Pier', 38.035, -122.125),
+                 'PRYC1': ('9415020', 'Point Reyes (Drakes Bay)', 37.994, -122.974),
+                 'RCMC1': ('9414863', 'Richmond', 37.923, -122.41),
+                 'FTPC1': ('9414290', 'San Francisco (Golden Gate)', 37.806, -122.466),
+                 'AAMC1': ('9414750', 'Alameda', 37.772, -122.3),
+                 'RTYC1': ('9414523', 'Redwood City', 37.507, -122.21),
+                 'MEYC1': ('9413450', 'Monterey Harbor', 36.605, -121.888),
+                 'PSLC1': ('9412110', 'Port San Luis', 35.169, -120.754),
+                 'OHBC1': ('9410660', 'Los Angeles Harbor', 33.72, -118.273),
+                 'LJAC1': ('9410230', 'La Jolla (Scripps Pier)', 32.867, -117.257),
+                 'SDBC1': ('9410170', 'San Diego Bay', 32.714, -117.174)}
 
 # positions for buoys missing from NDBC's active-station list (last known, from the IOOS catalog)
 FALLBACK_POSITIONS = {'46240': (36.626, -121.907)}
@@ -93,17 +113,20 @@ HIST = os.path.join(DATA, 'historical')
 
 def station_table():
     xml = http.get(f'{NDBC_URL}/activestations.xml', timeout=60).text
-    defs = [(sid, name, 'ndbc', '') for sid, name in NDBC_STATIONS.items()]
-    defs += [(sid, name, 'cdip', cdip) for sid, (cdip, name) in CDIP_STATIONS.items()]
+    defs = [(sid, name, 'ndbc', '', '') for sid, name in NDBC_STATIONS.items()]
+    defs += [(sid, name, 'cdip', cdip, '') for sid, (cdip, name) in CDIP_STATIONS.items()]
+    defs += [(sid, name, 'tide', '', coops) for sid, (coops, name, _, _) in TIDE_STATIONS.items()]
+    fallback = {**FALLBACK_POSITIONS, **{sid: (lat, lon) for sid, (_, _, lat, lon) in TIDE_STATIONS.items()}}
     rows = []
-    for sid, name, kind, cdip in defs:
+    for sid, name, kind, cdip, coops in defs:
         tag = re.search(rf'<station id="{sid}"[^>]*>', xml, flags=re.I)
         attr = dict(re.findall(r'(\w+)="([^"]*)"', tag.group(0))) if tag else {}
-        lat, lon = FALLBACK_POSITIONS.get(sid, (float(attr.get('lat', 'nan')), float(attr.get('lon', 'nan'))))
-        rows.append({'station': sid, 'name': name, 'type': kind, 'cdip': cdip, 'lat': lat, 'lon': lon,
+        lat, lon = (float(attr['lat']), float(attr['lon'])) if 'lat' in attr and sid not in FALLBACK_POSITIONS \
+            else fallback[sid]
+        rows.append({'station': sid, 'name': name, 'type': kind, 'cdip': cdip, 'coops': coops, 'lat': lat, 'lon': lon,
                      'long_name': attr.get('name', ''), 'operator': ''})
     for ds, (name, operator, lat, lon) in IOOS_STATIONS.items():
-        rows.append({'station': ds, 'name': name, 'type': 'ioos', 'cdip': '', 'lat': lat, 'lon': lon,
+        rows.append({'station': ds, 'name': name, 'type': 'ioos', 'cdip': '', 'coops': '', 'lat': lat, 'lon': lon,
                      'long_name': '', 'operator': operator})
     return pd.DataFrame(rows)
 
@@ -111,12 +134,12 @@ def station_table():
 def daily_history(sid, years):
     parts = []
     for year in years:
-        path = os.path.join(HIST, f'{sid}h{year}.txt.gz')
+        path = os.path.join(HIST, f'{sid.lower()}h{year}.txt.gz')  # NDBC file names are lower case
         missing = path + '.missing'  # remembers years NDBC doesn't have
         if os.path.exists(missing):
             continue
         if not os.path.exists(path):
-            r = http.get(f'{NDBC_URL}/data/historical/stdmet/{sid}h{year}.txt.gz', timeout=60)
+            r = http.get(f'{NDBC_URL}/data/historical/stdmet/{sid.lower()}h{year}.txt.gz', timeout=60)
             if r.status_code != 200:
                 open(missing, 'w').close()
                 continue

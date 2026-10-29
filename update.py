@@ -1,7 +1,7 @@
 """Hourly update for beachthermometer.com (run by .github/workflows/update.yml).
 
-1. Fetch each buoy's NDBC realtime2 file (the past 45 days, updated about
-   hourly), or each mooring's surface sensor from the IOOS ERDDAP server
+1. Fetch each buoy's or tide station's NDBC realtime2 file (the past 45 days,
+   updated about hourly), or each mooring's surface sensor from the IOOS ERDDAP server
    (ioos.py), and merge its water temperatures, as hourly means, into the archive:
    data/archive/{station}/{YYYY-MM}.csv. Only the current month's files change
    from hour to hour, so the committed history stays small.
@@ -86,8 +86,8 @@ def read_archive(sid, since):
 def main():
     now = pd.Timestamp.now(tz='UTC')
     since = now - pd.Timedelta(days=RECENT_DAYS)
-    stations = pd.read_csv(os.path.join(DATA, 'stations.csv'), dtype={'station': str, 'cdip': str}).set_index('station')
-    text_cols = ['name', 'long_name', 'cdip', 'operator']
+    stations = pd.read_csv(os.path.join(DATA, 'stations.csv'), dtype={'station': str, 'cdip': str, 'coops': str}).set_index('station')
+    text_cols = ['name', 'long_name', 'cdip', 'coops', 'operator']
     stations[text_cols] = stations[text_cols].fillna('')  # blanks, not NaN
     clim = pd.read_csv(os.path.join(DATA, 'climatology.csv'), dtype={'station': str})
     os.makedirs(os.path.join(SITE_DATA, 'stations'), exist_ok=True)
@@ -109,6 +109,8 @@ def main():
                  'clim_years': [int(info['clim_start']), int(info['clim_end'])] if has_clim else None}
         if info['type'] == 'cdip':
             entry['cdip'] = info['cdip']
+        if info['type'] == 'tide':
+            entry['coops'] = info['coops']
         if info['type'] == 'ioos':
             entry.update({'operator': info['operator'], 'depth_m': float(info['depth_m'])})
         recent_raw = raw[raw.index >= since]

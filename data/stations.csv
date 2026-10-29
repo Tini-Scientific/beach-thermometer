@@ -1,50 +1,65 @@
-station,name,type,cdip,lat,lon,long_name,operator,clim_start,clim_end,depth_m
-46027,St Georges,ndbc,,41.84,-124.382,"ST GEORGES - 8 NM NW of Crescent City, CA",,1991.0,2020.0,
-46022,Eel River,ndbc,,40.716,-124.54,"EEL RIVER - 17NM WSW of Eureka, CA",,1991.0,2020.0,
-46014,Point Arena,ndbc,,39.225,-123.98,"PT ARENA - 19NM North of Point Arena, CA",,1991.0,2020.0,
-46013,Bodega Bay,ndbc,,38.235,-123.317,"BODEGA BAY - 48NM NW of San Francisco, CA",,1991.0,2020.0,
-46026,San Francisco,ndbc,,37.75,-122.838,"SAN FRANCISCO - 18NM West of San Francisco, CA",,1991.0,2020.0,
-46012,Half Moon Bay,ndbc,,37.356,-122.881,"HALF MOON BAY - 24NM SSW of San Francisco, CA",,1991.0,2020.0,
-46042,Monterey Bay,ndbc,,36.787,-122.408,"MONTEREY - 27NM WNW of Monterey, CA",,1991.0,2020.0,
-46028,Cape San Martin,ndbc,,35.763,-121.9,"CAPE SAN MARTIN - 55NM West NW of Morro Bay, CA",,1991.0,2020.0,
-46011,Santa Maria,ndbc,,34.937,-120.999,"SANTA MARIA - 21NM NW of Point Arguello, CA",,1991.0,2020.0,
-46054,West Santa Barbara,ndbc,,34.274,-120.468,"WEST SANTA BARBARA  38 NM West of Santa Barbara, CA",,1994.0,2020.0,
-46053,East Santa Barbara,ndbc,,34.246,-119.842,"EAST SANTA BARBARA  - 12NM Southwest of Santa Barbara, CA",,1994.0,2020.0,
-46025,Santa Monica Basin,ndbc,,33.765,-119.077,"Santa Monica Basin - 33NM WSW of Santa Monica, CA",,1991.0,2020.0,
-46069,South Santa Rosa Island,ndbc,,33.657,-120.227,"SOUTH SANTA ROSA - 14 NM SW of Santa Rosa Island, CA",,2004.0,2020.0,
-46244,Humboldt Bay North Spit,cdip,168,40.896,-124.358,"Humboldt Bay, North Spit, CA (168)",,2010.0,2025.0,
-46213,Cape Mendocino,cdip,094,40.291,-124.748,"Cape Mendocino, CA (094)",,2004.0,2020.0,
-46214,Point Reyes,cdip,029,37.944,-123.466,"Point Reyes, CA (029)",,2004.0,2020.0,
-46237,San Francisco Bar,cdip,142,37.788,-122.634,"San Francisco Bar, CA  (142)",,2007.0,2025.0,
-46240,Cabrillo Point,cdip,158,36.626,-121.907,,,2009.0,2025.0,
-46239,Point Sur,cdip,157,36.342,-122.11,"Point Sur, CA (157)",,2009.0,2025.0,
-46215,Diablo Canyon,cdip,076,35.204,-120.859,"Diablo Canyon, CA (076)",,2004.0,2020.0,
-46259,Santa Lucia Escarpment,cdip,222,34.774,-121.491,"Santa Lucia Escarpment, CA (222)",,2016.0,2025.0,
-46218,Harvest,cdip,071,34.452,-120.78,"Harvest, CA (071)",,2004.0,2020.0,
-46268,Topanga,cdip,103,34.022,-118.578,"Topanga Nearshore, CA (103)",,,,
-46221,Santa Monica Bay,cdip,028,33.86,-118.641,"Santa Monica Bay, CA (028)",,2004.0,2020.0,
-46251,Santa Cruz Basin,cdip,203,33.769,-119.565,"Santa Cruz Basin, CA (203)",,2013.0,2025.0,
-46256,Long Beach Channel,cdip,215,33.7,-118.201,"Long Beach Channel, CA (215)",,2015.0,2025.0,
-46222,San Pedro,cdip,092,33.614,-118.314,"San Pedro, CA (092)",,2004.0,2020.0,
-46253,San Pedro South,cdip,213,33.576,-118.182,"San Pedro South, CA (213)",,2014.0,2025.0,
-46277,Green Beach,cdip,271,33.336,-117.659,"Green Beach Offshore, CA (271)",,,,
-46275,Red Beach,cdip,264,33.291,-117.501,"Red Beach Nearshore, CA (264)",,,,
-46219,San Nicolas Island,cdip,067,33.226,-119.891,"San Nicolas Island, CA (067)",,2004.0,2020.0,
-46224,Oceanside Offshore,cdip,045,33.178,-117.472,"Oceanside Offshore, CA (045)",,2004.0,2020.0,
-46274,Leucadia,cdip,262,33.062,-117.314,"Leucadia Nearshore, CA (262)",,,,
-46266,Del Mar,cdip,153,32.957,-117.279,"Del Mar Nearshore, CA (153)",,,,
-46225,Torrey Pines Outer,cdip,100,32.933,-117.391,"Torrey Pines Outer, CA (100)",,2004.0,2020.0,
-46254,Scripps Nearshore,cdip,201,32.868,-117.267,"SCRIPPS Nearshore, CA (201)",,2015.0,2025.0,
-46258,Mission Bay West,cdip,220,32.749,-117.502,"Mission Bay West, CA (220)",,2016.0,2025.0,
-46235,Imperial Beach,cdip,155,32.57,-117.169,"Imperial Beach Nearshore, CA (155)",,2007.0,2025.0,
-46232,Point Loma South,cdip,191,32.517,-117.425,"Point Loma South, CA  (191)",,2006.0,2020.0,
-bodega-marine-laboratory-bml-,Bodega Marine Lab Buoy,ioos,,38.3118,-123.083,,UC Davis Bodega Marine Laboratory,2004.0,2018.0,0.0
-oa2-mbari-buoy,MBARI OA2,ioos,,37.1109,-122.3,,MBARI,2015.0,2025.0,0.0
-org_mbari_m1,MBARI M1,ioos,,36.7511,-122.0292,,MBARI,2018.0,2025.0,1.0
-oa1-mbari-buoy-1,MBARI OA1,ioos,,36.623,-121.9005,,MBARI,2014.0,2025.0,0.0
-mini-mooring-deployment-off-sant,Santa Monica Mini-Mooring,ioos,,33.9592,-118.4641,,Scripps,,,3.0
-mini-mooring-deployment-off-del-,Del Mar Mini-Mooring,ioos,,32.9497,-117.2829,,Scripps,,,3.0
-del-mar-mooring-1,Del Mar Mooring,ioos,,32.93,-117.32,,Scripps,2006.0,2020.0,0.0
-imperial-beach-mini-mooring-ib-n,Imperial Beach North,ioos,,32.6154,-117.1404,,Scripps,,,1.0
-imperial-beach-mini-mooring-ib-w,Imperial Beach West,ioos,,32.5816,-117.163,,Scripps,,,1.0
-imperial-beach-mini-mooring-ib-s,Imperial Beach South,ioos,,32.5396,-117.1512,,Scripps,,,1.0
+station,name,type,cdip,coops,lat,lon,long_name,operator,clim_start,clim_end,depth_m
+46027,St Georges,ndbc,,,41.84,-124.382,"ST GEORGES - 8 NM NW of Crescent City, CA",,1991.0,2020.0,
+46022,Eel River,ndbc,,,40.716,-124.54,"EEL RIVER - 17NM WSW of Eureka, CA",,1991.0,2020.0,
+46014,Point Arena,ndbc,,,39.225,-123.98,"PT ARENA - 19NM North of Point Arena, CA",,1991.0,2020.0,
+46013,Bodega Bay,ndbc,,,38.235,-123.317,"BODEGA BAY - 48NM NW of San Francisco, CA",,1991.0,2020.0,
+46026,San Francisco,ndbc,,,37.75,-122.838,"SAN FRANCISCO - 18NM West of San Francisco, CA",,1991.0,2020.0,
+46012,Half Moon Bay,ndbc,,,37.356,-122.881,"HALF MOON BAY - 24NM SSW of San Francisco, CA",,1991.0,2020.0,
+46042,Monterey Bay,ndbc,,,36.787,-122.408,"MONTEREY - 27NM WNW of Monterey, CA",,1991.0,2020.0,
+46028,Cape San Martin,ndbc,,,35.763,-121.9,"CAPE SAN MARTIN - 55NM West NW of Morro Bay, CA",,1991.0,2020.0,
+46011,Santa Maria,ndbc,,,34.937,-120.999,"SANTA MARIA - 21NM NW of Point Arguello, CA",,1991.0,2020.0,
+46054,West Santa Barbara,ndbc,,,34.274,-120.468,"WEST SANTA BARBARA  38 NM West of Santa Barbara, CA",,1994.0,2020.0,
+46053,East Santa Barbara,ndbc,,,34.246,-119.842,"EAST SANTA BARBARA  - 12NM Southwest of Santa Barbara, CA",,1994.0,2020.0,
+46025,Santa Monica Basin,ndbc,,,33.765,-119.077,"Santa Monica Basin - 33NM WSW of Santa Monica, CA",,1991.0,2020.0,
+46069,South Santa Rosa Island,ndbc,,,33.657,-120.227,"SOUTH SANTA ROSA - 14 NM SW of Santa Rosa Island, CA",,2004.0,2020.0,
+46244,Humboldt Bay North Spit,cdip,168,,40.896,-124.358,"Humboldt Bay, North Spit, CA (168)",,2010.0,2025.0,
+46213,Cape Mendocino,cdip,094,,40.291,-124.748,"Cape Mendocino, CA (094)",,2004.0,2020.0,
+46214,Point Reyes,cdip,029,,37.944,-123.466,"Point Reyes, CA (029)",,2004.0,2020.0,
+46237,San Francisco Bar,cdip,142,,37.788,-122.634,"San Francisco Bar, CA  (142)",,2007.0,2025.0,
+46240,Cabrillo Point,cdip,158,,36.626,-121.907,,,2009.0,2025.0,
+46239,Point Sur,cdip,157,,36.342,-122.11,"Point Sur, CA (157)",,2009.0,2025.0,
+46215,Diablo Canyon,cdip,076,,35.204,-120.859,"Diablo Canyon, CA (076)",,2004.0,2020.0,
+46259,Santa Lucia Escarpment,cdip,222,,34.774,-121.491,"Santa Lucia Escarpment, CA (222)",,2016.0,2025.0,
+46218,Harvest,cdip,071,,34.452,-120.78,"Harvest, CA (071)",,2004.0,2020.0,
+46268,Topanga,cdip,103,,34.022,-118.578,"Topanga Nearshore, CA (103)",,,,
+46221,Santa Monica Bay,cdip,028,,33.86,-118.641,"Santa Monica Bay, CA (028)",,2004.0,2020.0,
+46251,Santa Cruz Basin,cdip,203,,33.769,-119.565,"Santa Cruz Basin, CA (203)",,2013.0,2025.0,
+46256,Long Beach Channel,cdip,215,,33.7,-118.201,"Long Beach Channel, CA (215)",,2015.0,2025.0,
+46222,San Pedro,cdip,092,,33.614,-118.314,"San Pedro, CA (092)",,2004.0,2020.0,
+46253,San Pedro South,cdip,213,,33.576,-118.182,"San Pedro South, CA (213)",,2014.0,2025.0,
+46277,Green Beach,cdip,271,,33.336,-117.659,"Green Beach Offshore, CA (271)",,,,
+46275,Red Beach,cdip,264,,33.291,-117.501,"Red Beach Nearshore, CA (264)",,,,
+46219,San Nicolas Island,cdip,067,,33.226,-119.891,"San Nicolas Island, CA (067)",,2004.0,2020.0,
+46224,Oceanside Offshore,cdip,045,,33.178,-117.472,"Oceanside Offshore, CA (045)",,2004.0,2020.0,
+46274,Leucadia,cdip,262,,33.062,-117.314,"Leucadia Nearshore, CA (262)",,,,
+46266,Del Mar,cdip,153,,32.957,-117.279,"Del Mar Nearshore, CA (153)",,,,
+46225,Torrey Pines Outer,cdip,100,,32.933,-117.391,"Torrey Pines Outer, CA (100)",,2004.0,2020.0,
+46254,Scripps Nearshore,cdip,201,,32.868,-117.267,"SCRIPPS Nearshore, CA (201)",,2015.0,2025.0,
+46258,Mission Bay West,cdip,220,,32.749,-117.502,"Mission Bay West, CA (220)",,2016.0,2025.0,
+46235,Imperial Beach,cdip,155,,32.57,-117.169,"Imperial Beach Nearshore, CA (155)",,2007.0,2025.0,
+46232,Point Loma South,cdip,191,,32.517,-117.425,"Point Loma South, CA  (191)",,2006.0,2020.0,
+CECC1,Crescent City Harbor,tide,,9419750,41.746,-124.184,"9419750 - Crescent City, CA",,2005.0,2020.0,
+HBYC1,Humboldt Bay (North Spit),tide,,9418767,40.767,-124.217,"9418767 - North Spit, CA",,2005.0,2020.0,
+ANVC1,Arena Cove,tide,,9416841,38.915,-123.711,"9416841 - Arena Cove, CA",,2006.0,2020.0,
+PCOC1,Port Chicago,tide,,9415144,38.056,-122.039,"9415144 - Port Chicago, CA",,2005.0,2020.0,
+MZXC1,Martinez-Amorco Pier,tide,,9415102,38.035,-122.125,"9415102 - Martinez-Amorco Pier, CA",,2013.0,2025.0,
+PRYC1,Point Reyes (Drakes Bay),tide,,9415020,37.996,-122.977,"9415020 - Point Reyes, CA",,2007.0,2023.0,
+RCMC1,Richmond,tide,,9414863,37.923,-122.41,"9414863 - Richmond, CA",,2005.0,2020.0,
+FTPC1,San Francisco (Golden Gate),tide,,9414290,37.806,-122.466,"9414290 - San Francisco, CA",,2006.0,2020.0,
+AAMC1,Alameda,tide,,9414750,37.772,-122.3,"9414750 - Alameda, CA",,2005.0,2020.0,
+RTYC1,Redwood City,tide,,9414523,37.507,-122.212,"9414523 - Redwood City, CA",,2005.0,2020.0,
+MEYC1,Monterey Harbor,tide,,9413450,36.605,-121.889,"9413450 - Monterey, CA",,2016.0,2025.0,
+PSLC1,Port San Luis,tide,,9412110,35.169,-120.754,"9412110 - Port San Luis, CA",,2005.0,2020.0,
+OHBC1,Los Angeles Harbor,tide,,9410660,33.72,-118.273,"9410660 - Los Angeles, CA",,2005.0,2020.0,
+LJAC1,La Jolla (Scripps Pier),tide,,9410230,32.867,-117.257,"9410230 - La Jolla, CA",,2005.0,2020.0,
+SDBC1,San Diego Bay,tide,,9410170,32.714,-117.174,"9410170 - San Diego, CA",,2005.0,2020.0,
+bodega-marine-laboratory-bml-,Bodega Marine Lab Buoy,ioos,,,38.3118,-123.083,,UC Davis Bodega Marine Laboratory,2004.0,2018.0,0.0
+oa2-mbari-buoy,MBARI OA2,ioos,,,37.1109,-122.3,,MBARI,2015.0,2025.0,0.0
+org_mbari_m1,MBARI M1,ioos,,,36.7511,-122.0292,,MBARI,2018.0,2025.0,1.0
+oa1-mbari-buoy-1,MBARI OA1,ioos,,,36.623,-121.9005,,MBARI,2014.0,2025.0,0.0
+mini-mooring-deployment-off-sant,Santa Monica Mini-Mooring,ioos,,,33.9592,-118.4641,,Scripps,,,3.0
+mini-mooring-deployment-off-del-,Del Mar Mini-Mooring,ioos,,,32.9497,-117.2829,,Scripps,,,3.0
+del-mar-mooring-1,Del Mar Mooring,ioos,,,32.93,-117.32,,Scripps,2006.0,2020.0,0.0
+imperial-beach-mini-mooring-ib-n,Imperial Beach North,ioos,,,32.6154,-117.1404,,Scripps,,,1.0
+imperial-beach-mini-mooring-ib-w,Imperial Beach West,ioos,,,32.5816,-117.163,,Scripps,,,1.0
+imperial-beach-mini-mooring-ib-s,Imperial Beach South,ioos,,,32.5396,-117.1512,,Scripps,,,1.0

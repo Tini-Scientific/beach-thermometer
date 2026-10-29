@@ -1,7 +1,7 @@
 # Beach Thermometer
 
 Real-time surface water temperature at California's NDBC offshore buoys (diamonds),
-CDIP wave buoys (circles) and IOOS moorings (pentagons), compared with each station's own climatology (1991–2020 where the
+CDIP wave buoys (circles), IOOS moorings (pentagons) and NOAA CO-OPS tide stations (squares), compared with each station's own climatology (1991–2020 where the
 record allows; see `build_climatology.py`), at [beachthermometer.com](https://beachthermometer.com).
 A Tini Scientific project.
 
@@ -74,6 +74,6 @@ work: browsers block a file page from loading its data.)
 
 Buoy observations: NOAA National Data Buoy Center (realtime2 and historical
 standard meteorological files), including the Coastal Data Information Program (CDIP,
-Scripps Institution of Oceanography) wave buoys it distributes; IOOS sensor catalog
+Scripps Institution of Oceanography) wave buoys and NOAA CO-OPS tide stations it distributes; IOOS sensor catalog
 (erddap.sensors.ioos.us) for the MBARI, Scripps and UC Davis Bodega Marine Laboratory
 moorings. Basemaps: Esri.
