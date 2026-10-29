@@ -445,24 +445,18 @@ function shape(type, r, attrs) {
     }).join(' ');
     return `<polygon points="${pts}" ${attrs}/>`;
 }
-// SVG marker for the map (size 26 px) or the list (14 px). A heatwave adds a thick
-// red outline, separated from the fill by a white ring so warm (coral-red) fills
-// still read, plus a pulsing red ring on the map.
+// SVG marker for the map (size 26 px) or the list (14 px). A heatwave turns the
+// outline red, with a pulsing red ring on the map.
 function markerHtml(s, inList = false) {
     const hw = s.status === 'heatwave';
     const r = ({cdip: 6.5, ndbc: 8, ioos: 7.5, tide: 8})[s.type];
     // legend symbols (s.legend) are neutral: color means temperature, shape means type
     const fill = s.legend ? '#d9d9d9' : s.last_c == null ? COLORS.noData : tempColor(s.last_c);
     const red = inList ? '#FF5A6A' : COLORS.heatwave;
-    const edge = inList ? 'rgba(255,255,255,0.6)' : '#ffffff';
+    const edge = hw ? red : inList ? 'rgba(255,255,255,0.6)' : '#ffffff';
     const join = 'stroke-linejoin="round"';
-    let svg = '';
-    if (hw) {
-        const ro = r + (inList ? 1.5 : 2.5);
-        if (!inList) svg += shape(s.type, ro, `class="pulse" fill="none" stroke="${red}" stroke-width="2"`);
-        svg += shape(s.type, ro, `fill="none" stroke="${red}" stroke-width="${inList ? 2 : 3}" ${join}`);
-    }
-    svg += shape(s.type, r, `fill="${fill}" stroke="${hw ? '#ffffff' : edge}" stroke-width="1.5" ${join}`);
+    let svg = hw && !inList ? shape(s.type, r, `class="pulse" fill="none" stroke="${red}" stroke-width="2"`) : '';
+    svg += shape(s.type, r, `fill="${fill}" stroke="${edge}" stroke-width="${hw ? 2 : 1.5}" ${join}`);
     const size = inList ? 14 : 26;
     return `<svg class="bt-mk" width="${size}" height="${size}" viewBox="0 0 24 24">${svg}</svg>`;
 }
