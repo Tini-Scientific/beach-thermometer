@@ -8,8 +8,8 @@ as in Hobday et al. 2016's marine heatwave definition), then smoothed with a
 SMOOTH_DAYS (31-day) running mean that wraps around the year end, also as in
 Hobday et al., so short records don't give a jumpy climatology.
 
-Stations: California's NDBC offshore buoys, CDIP wave buoys, IOOS moorings and
-NOAA CO-OPS tide stations that reported water temperature in the past year (the same stations as
+Stations: California's NDBC offshore buoys, CDIP wave buoys, IOOS moorings,
+NOAA CO-OPS tide stations and IOOS shore stations that reported water temperature in the past year (the same stations as
 BoB_261028's CA_WaterTemp_SideBySide.png). Moorings are included only if they
 have a surface sensor (top 3 m, see ioos.py), to match the buoys; that leaves
 out CCE Mooring 4 (21 m) and the Orange County mini-mooring (20 m). The
@@ -26,8 +26,8 @@ and the newer ones their whole record.
 Buoy and tide-station water temperature comes from NDBC's yearly
 standard-meteorological archives (CDIP buoys and CO-OPS tide stations are
 archived there under their NDBC IDs; NDBC's CO-OPS archive starts in 2005); mooring
-water temperature from the IOOS ERDDAP server as daily means over the whole
-record. Both are cached in data/historical/ (not committed). Re-run only to add stations or change the
+and shore-station water temperature from the IOOS ERDDAP server as daily means
+over the whole record. Both are cached in data/historical/ (not committed). Re-run only to add stations or change the
 method.
 """
 import gzip
@@ -96,6 +96,38 @@ IOOS_STATIONS = {
     'imperial-beach-mini-mooring-ib-s': ('Imperial Beach South', 'Scripps', 32.5396, -117.1512),
 }
 
+# IOOS shore stations (piers, wharves, seawater intakes; the catalog lists every sensor
+# at the surface): ERDDAP dataset ID -> (short name, operator, lat, lon).
+# Left out: Hog Island Oyster Hatchery, which reads ~9 °C warmer than Tomales Bay next door
+# (hatchery water, not the bay) and stopped reporting on 2026-09-15.
+SHORE_STATIONS = {
+    'klamath-yurok': ('Klamath (Yurok)', 'UC Davis Bodega Marine Laboratory', 41.5397, -124.1043),
+    'edu_humboldt_tdp': ('Trinidad Head', 'Cal Poly Humboldt / CeNCOOS', 41.055, -124.147),
+    'edu_humboldt_humboldt': ('Humboldt Bay Pier', 'Cal Poly Humboldt', 40.7775, -124.1965),
+    'humboldt-south-bay': ('Humboldt South Bay', 'Cal Poly Humboldt', 40.7234, -124.2234),
+    'noyo-bay': ('Noyo Bay', 'UC Davis Bodega Marine Laboratory', 39.429, -123.8136),
+    'timber-cove': ('Timber Cove', 'UC Davis Bodega Marine Laboratory', 38.528, -123.2733),
+    'fort-ross': ('Fort Ross', 'UC Davis Bodega Marine Laboratory', 38.5097, -123.2442),
+    'bodega-bay-bml_wts': ('Bodega Marine Lab Intake', 'UC Davis Bodega Marine Laboratory', 38.3165, -123.0709),
+    'tomales-bay-1': ('Tomales Bay', 'UC Davis Bodega Marine Laboratory', 38.1897, -122.9287),
+    'inverness': ('Inverness', 'UC Davis Bodega Marine Laboratory', 38.118, -122.867),
+    'tiburon-water-tibc1': ('Romberg Tiburon Pier', 'SFSU Romberg Tiburon Center / CeNCOOS', 37.8915, -122.4467),
+    'exploratorium-weather': ('Exploratorium Pier', 'Exploratorium', 37.8025, -122.3967),
+    'edu_ucsc_scwharf1': ('Santa Cruz Wharf', 'UC Santa Cruz', 36.9603, -122.0203),
+    'mlml_mlml_sea': ('Moss Landing Marine Labs Intake', 'Moss Landing Marine Laboratories', 36.8025, -121.7915),
+    'monterey-bay-aquarium-seawate': ('Monterey Bay Aquarium Intake', 'Monterey Bay Aquarium', 36.6186, -121.9015),
+    'edu_calpoly_marine_morro': ('Morro Bay', 'Cal Poly San Luis Obispo', 35.3708, -120.8589),
+    'morro-bay-bs1': ('Morro Bay (Back Bay)', 'Cal Poly San Luis Obispo', 35.3338, -120.8473),
+    'san-luis-bay-cal-poly-pier-shore': ('Cal Poly Pier', 'Cal Poly San Luis Obispo', 35.1701, -120.7406),
+    'stearns-wharf-automated-shore-st-1': ('Stearns Wharf', 'SCCOOS', 34.4107, -119.6874),
+    'santa-monica-pier-automated-shor': ('Santa Monica Pier', 'SCCOOS', 34.0086, -118.4986),
+    'newport-pier-automated-shore-sta': ('Newport Beach Pier', 'SCCOOS', 33.6073, -117.9289),
+}
+# ERDDAP water-temperature variable where it isn't sea_water_temperature
+# (the CTD; Newport's sea_water_temperature only starts in 2026)
+ERDDAP_VARS = {'stearns-wharf-automated-shore-st-1': 'sea_water_temperature_ctd',
+               'newport-pier-automated-shore-sta': 'sea_water_temperature_ctd'}
+
 BASE_YEARS = (1991, 2020)
 MIN_BASE_YEARS = 15
 LAST_YEAR = pd.Timestamp.now().year - 1  # last complete year (NDBC's yearly archive)
@@ -125,9 +157,11 @@ def station_table():
             else fallback[sid]
         rows.append({'station': sid, 'name': name, 'type': kind, 'cdip': cdip, 'coops': coops, 'lat': lat, 'lon': lon,
                      'long_name': attr.get('name', ''), 'operator': ''})
-    for ds, (name, operator, lat, lon) in IOOS_STATIONS.items():
-        rows.append({'station': ds, 'name': name, 'type': 'ioos', 'cdip': '', 'coops': '', 'lat': lat, 'lon': lon,
-                     'long_name': '', 'operator': operator})
+    for kind, table in [('ioos', IOOS_STATIONS), ('shore', SHORE_STATIONS)]:
+        for ds, (name, operator, lat, lon) in table.items():
+            rows.append({'station': ds, 'name': name, 'type': kind, 'cdip': '', 'coops': '', 'lat': lat, 'lon': lon,
+                         'long_name': '', 'operator': operator,
+                         'erddap_var': ERDDAP_VARS.get(ds, 'sea_water_temperature')})
     return pd.DataFrame(rows)
 
 
@@ -162,10 +196,11 @@ def years_with_data(daily):
 
 
 def ioos_history(dataset):
-    """A mooring's daily-mean surface temperature and sensor depth, cached in data/historical/."""
+    """A mooring's or shore station's daily-mean surface temperature and sensor depth,
+    cached in data/historical/."""
     path = os.path.join(HIST, f'ioos_{dataset}.csv')
     if not os.path.exists(path):
-        daily, z = ioos.daily_history(dataset)
+        daily, z = ioos.daily_history(dataset, ERDDAP_VARS.get(dataset, 'sea_water_temperature'))
         daily.rename_axis('time_utc').to_frame().assign(z=z).to_csv(path)
     df = pd.read_csv(path, index_col=0)
     daily = pd.Series(df['wtmp_c'].values, index=pd.to_datetime(df.index, utc=True))
@@ -188,7 +223,7 @@ def pick_period(daily_base, get_all):
 
 
 def choose_period(sid, kind):
-    if kind == 'ioos':
+    if kind in ('ioos', 'shore'):
         daily, _ = ioos_history(sid)
         return pick_period(daily[(daily.index.year >= BASE_YEARS[0]) & (daily.index.year <= BASE_YEARS[1])],
                            lambda: daily)

@@ -1,8 +1,8 @@
 """Hourly update for beachthermometer.com (run by .github/workflows/update.yml).
 
 1. Fetch each buoy's or tide station's NDBC realtime2 file (the past 45 days,
-   updated about hourly), or each mooring's surface sensor from the IOOS ERDDAP server
-   (ioos.py), and merge its water temperatures, as hourly means, into the archive:
+   updated about hourly), or each mooring's or shore station's surface sensor from
+   the IOOS ERDDAP server (ioos.py), and merge its water temperatures, as hourly means, into the archive:
    data/archive/{station}/{YYYY-MM}.csv. Only the current month's files change
    from hour to hour, so the committed history stays small.
 2. Write the site data (not committed; published straight to GitHub Pages):
@@ -87,15 +87,15 @@ def main():
     now = pd.Timestamp.now(tz='UTC')
     since = now - pd.Timedelta(days=RECENT_DAYS)
     stations = pd.read_csv(os.path.join(DATA, 'stations.csv'), dtype={'station': str, 'cdip': str, 'coops': str}).set_index('station')
-    text_cols = ['name', 'long_name', 'cdip', 'coops', 'operator']
+    text_cols = ['name', 'long_name', 'cdip', 'coops', 'operator', 'erddap_var']
     stations[text_cols] = stations[text_cols].fillna('')  # blanks, not NaN
     clim = pd.read_csv(os.path.join(DATA, 'climatology.csv'), dtype={'station': str})
     os.makedirs(os.path.join(SITE_DATA, 'stations'), exist_ok=True)
 
     entries = []
     for sid, info in stations.iterrows():
-        if info['type'] == 'ioos':
-            raw = ioos.recent(sid, RECENT_DAYS)
+        if info['type'] in ('ioos', 'shore'):
+            raw = ioos.recent(sid, RECENT_DAYS, info['erddap_var'])
         else:
             r = http.get(f'{NDBC_URL}/data/realtime2/{sid}.txt', timeout=60)
             raw = read_stdmet(r.text) if r.status_code == 200 else read_stdmet('')
@@ -113,6 +113,8 @@ def main():
             entry['coops'] = info['coops']
         if info['type'] == 'ioos':
             entry.update({'operator': info['operator'], 'depth_m': float(info['depth_m'])})
+        if info['type'] == 'shore':
+            entry['operator'] = info['operator']
         recent_raw = raw[raw.index >= since]
         if len(recent_raw) and not has_clim:
             entry.update({'last_time_ms': int(recent_raw.index[-1].timestamp() * 1000),

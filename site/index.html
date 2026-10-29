@@ -61,7 +61,8 @@ body { display: flex; flex-direction: column; }
 .bt-sort button:first-child { border-left-width: 1px; border-radius: 8px 0 0 8px; }
 .bt-sort button:last-child { border-radius: 0 8px 8px 0; }
 .bt-sort button.on { background: var(--fandango); color: white; }
-.bt-list-rows { max-height: calc(100vh - 580px); min-height: 80px; overflow-y: auto; padding: 4px 0; }
+.bt-list-rows { max-height: calc(100vh - 615px);  /* refined in fit() */ min-height: 80px; overflow-y: auto; padding: 4px 0;
+                box-sizing: border-box; }
 .bt-list.collapsed .bt-list-rows { display: none; }
 .bt-list.collapsed .bt-list-head { border-bottom: none; padding-bottom: 10px; }
 .bt-row { display: flex; align-items: center; gap: 8px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
@@ -72,7 +73,7 @@ body { display: flex; flex-direction: column; }
 
 /* station markers (map and list, inline SVG drawn by markerHtml): the shape is the
    type (NDBC offshore buoys diamonds, CDIP wave buoys circles, IOOS moorings
-   pentagons, NOAA tide stations squares), the fill is the latest temperature on cmocean's thermal colormap
+   pentagons, NOAA tide stations squares, IOOS shore stations downward triangles), the fill is the latest temperature on cmocean's thermal colormap
    (40-80 °F, color bar top right), gray when no data; a thick red outline with a
    pulsing ring for a suspected marine heatwave */
 .bt-mk-wrap { display: flex; align-items: center; justify-content: center; }
@@ -165,7 +166,7 @@ body.imperial .bt-imperial { display: inline; }
 <body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
 <header class="bt-page-header bt-font">
   <h1>Beach Thermometer</h1>
-  <p>Live sea-surface temperatures from California's buoys, moorings and tide stations, together on one map, so you can watch marine heatwaves unfold.</p>
+  <p>Live sea-surface temperatures from California's buoys, moorings, tide gauges and shore stations, together on one map, so you can watch marine heatwaves unfold.</p>
 </header>
 <div id="map"></div>
 <div class="bt-stats bt-font">
@@ -247,11 +248,12 @@ const STATUS = {
 // popup subtitle and "Data: CDIP 215 / NDBC 46256" links by station type
 const buoyLabel = s => ({cdip: `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}`, ndbc: `Offshore buoy · NDBC ${s.id}`,
                          ioos: `Mooring · ${s.operator} · surface sensor at ${s.depth_m} m`,
-                         tide: `Tide station · NOAA CO-OPS ${s.coops} / NDBC ${s.id}`})[s.type]
+                         tide: `Tide station · NOAA CO-OPS ${s.coops} / NDBC ${s.id}`,
+                         shore: `Shore station · ${s.operator}`})[s.type]
                      + (s.long_name ? ` · ${s.long_name}` : '');
 const link = (href, text) => `<a class="bt-source" style="display:inline;" href="${href}" target="_blank">${text}</a>`;
 const dataLinks = s => `<span class="bt-data">Data: `
-    + (s.type === 'ioos' ? link(`https://erddap.sensors.ioos.us/erddap/tabledap/${s.id}.html`, 'IOOS sensor catalog')
+    + (s.type === 'ioos' || s.type === 'shore' ? link(`https://erddap.sensors.ioos.us/erddap/tabledap/${s.id}.html`, 'IOOS sensor catalog')
        : (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / '
           : s.type === 'tide' ? link(`https://tidesandcurrents.noaa.gov/stationhome.html?id=${s.coops}`, `CO-OPS ${s.coops}`) + ' / '
           : '')
@@ -430,15 +432,16 @@ document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
 // type buttons at the top are the legend and filter the list and the map.
 // Clicking a row opens that buoy's popup. Starts collapsed on phones.
 const TYPES = {ndbc: 'Offshore buoys (NDBC)', cdip: 'Wave buoys (CDIP)', ioos: 'Moorings (IOOS)',
-               tide: 'Tide stations (NOAA)'};
+               tide: 'Tide stations (NOAA)', shore: 'Shore stations (IOOS)'};
 const markers = {};
 let stationList = [];
 const hiddenTypes = new Set();
-// marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC), pentagon (IOOS) or square (tide), radius r
+// marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC), pentagon (IOOS mooring),
+// square (tide) or downward triangle (shore), radius r
 function shape(type, r, attrs) {
     if (type === 'cdip') return `<circle cx="12" cy="12" r="${r}" ${attrs}/>`;
-    const n = type === 'ioos' ? 5 : 4;
-    const start = type === 'tide' ? -Math.PI / 4 : -Math.PI / 2;  // square vs diamond
+    const n = ({ioos: 5, shore: 3})[type] || 4;
+    const start = ({tide: -Math.PI / 4, shore: Math.PI / 2})[type] ?? -Math.PI / 2;  // square, down triangle, else point up
     const pts = Array.from({length: n}, (_, k) => {
         const a = start + 2 * Math.PI * k / n;
         return `${(12 + r * Math.cos(a)).toFixed(2)},${(12 + r * Math.sin(a)).toFixed(2)}`;
@@ -449,7 +452,7 @@ function shape(type, r, attrs) {
 // outline red, with a pulsing red ring on the map.
 function markerHtml(s, inList = false) {
     const hw = s.status === 'heatwave';
-    const r = ({cdip: 6.5, ndbc: 8, ioos: 7.5, tide: 8})[s.type];
+    const r = ({cdip: 6.5, ndbc: 8, ioos: 7.5, tide: 8, shore: 9})[s.type];
     // legend symbols (s.legend) are neutral: color means temperature, shape means type
     const fill = s.legend ? '#d9d9d9' : s.last_c == null ? COLORS.noData : tempColor(s.last_c);
     const red = inList ? '#FF5A6A' : COLORS.heatwave;
@@ -489,6 +492,15 @@ const ListCtrl = L.Control.extend({
             div.querySelectorAll('.bt-row').forEach(r => { r.onclick = () => markers[r.dataset.id].openPopup(); });
         };
         fill();
+        // keep the list's rows above the info panel (bottom left), whatever the window size
+        const fit = () => {
+            const rows = div.querySelector('.bt-list-rows');
+            const room = document.querySelector('.bt-stats').getBoundingClientRect().top - rows.getBoundingClientRect().top - 12;
+            rows.style.maxHeight = `${Math.max(room, 80)}px`;
+        };
+        setTimeout(fit, 0);
+        document.fonts.ready.then(fit);  // fonts shift the layout a little
+        window.addEventListener('resize', fit);
         div.querySelectorAll('.bt-sort button').forEach(b => {
             b.onclick = () => {
                 div.querySelectorAll('.bt-sort button').forEach(x => x.classList.toggle('on', x === b));
