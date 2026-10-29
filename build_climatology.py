@@ -4,7 +4,9 @@ Writes data/stations.csv (names, types and positions; positions from NDBC's
 active-station list) and data/climatology.csv: for every buoy and day of the
 year, the mean and the 10th and 90th percentiles of daily-mean water
 temperature, pooling all days within ±CLIM_HALF_WINDOW_DAYS (an 11-day window,
-as in Hobday et al. 2016's marine heatwave definition).
+as in Hobday et al. 2016's marine heatwave definition), then smoothed with a
+SMOOTH_DAYS (31-day) running mean that wraps around the year end, also as in
+Hobday et al., so short records don't give a jumpy climatology.
 
 Stations: California's NDBC offshore buoys and CDIP wave buoys that reported
 water temperature in the past year (the same buoys as BoB_261028's
@@ -62,6 +64,7 @@ MIN_DAYS_PER_YEAR = 60  # a year counts toward the record with this many daily m
 CLIM_HALF_WINDOW_DAYS = 5
 MIN_HOURS_PER_DAY = 12
 MIN_DAYS_PER_DOY = 40  # a day of year needs this many daily means in its window
+SMOOTH_DAYS = 31
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data')
@@ -125,17 +128,28 @@ def choose_period(sid):
     return None, None
 
 
+def smooth(values):
+    """SMOOTH_DAYS running mean over days 1-366, wrapping around the year end;
+    days with no climatology are skipped (a window needs half its days)."""
+    half = SMOOTH_DAYS // 2
+    padded = pd.Series(np.concatenate([values[-half:], values, values[:half]]))
+    return padded.rolling(SMOOTH_DAYS, center=True, min_periods=half + 1).mean().values[half:-half]
+
+
 def climatology(sid, daily):
     doy = daily.index.dayofyear.values
     rows = []
     for d in range(1, 367):
         near = np.abs((doy - d + 183) % 366 - 183) <= CLIM_HALF_WINDOW_DAYS
-        if near.sum() >= MIN_DAYS_PER_DOY:
-            v = daily.values[near]
-            rows.append({'station': sid, 'doy': d, 'mean_c': v.mean(), 'p10_c': np.percentile(v, 10),
-                         'p90_c': np.percentile(v, 90), 'n_days': int(near.sum()),
-                         'n_years': daily.index[near].year.nunique()})
-    return rows
+        v = daily.values[near]
+        ok = near.sum() >= MIN_DAYS_PER_DOY
+        rows.append({'station': sid, 'doy': d, 'mean_c': v.mean() if ok else np.nan,
+                     'p10_c': np.percentile(v, 10) if ok else np.nan, 'p90_c': np.percentile(v, 90) if ok else np.nan,
+                     'n_days': int(near.sum()), 'n_years': daily.index[near].year.nunique()})
+    clim = pd.DataFrame(rows)
+    for col in ['mean_c', 'p10_c', 'p90_c']:
+        clim[col] = smooth(clim[col].values)
+    return clim.dropna(subset=['mean_c']).to_dict('records')
 
 
 if __name__ == '__main__':

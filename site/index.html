@@ -131,6 +131,7 @@ body.imperial .bt-imperial { display: inline; }
 }
 .bt-toggle.on { background: var(--federal-blue); color: white; }
 .bt-source { display: block; font-size: 11px; color: #888; text-decoration: underline; }
+.bt-data { font-size: 11px; color: #888; }
 .bt-download { color: var(--federal-blue); font-weight: 600; font-size: 13px; text-decoration: underline; }
 .leaflet-popup-content { margin: 14px 16px; }
 
@@ -211,20 +212,20 @@ const STATUS = {
     noclim: () => ['no climatology yet (record shorter than 8 years)', COLORS.text],
 };
 
-// popup subtitle and data-source link by buoy type
+// popup subtitle and "Data: CDIP 215 / NDBC 46256" links by buoy type
 const buoyLabel = s => (s.type === 'cdip' ? `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}` : `Offshore buoy · NDBC ${s.id}`)
                      + (s.ndbc_name ? ` · ${s.ndbc_name}` : '');
-const sourceUrl = s => (s.type === 'cdip' ? `https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`
-                                         : `${NDBC}/station_page.php?station=${s.id}`);
-const sourceName = s => (s.type === 'cdip' ? `CDIP station ${s.cdip}` : `NOAA NDBC station ${s.id}`);
+const link = (href, text) => `<a class="bt-source" style="display:inline;" href="${href}" target="_blank">${text}</a>`;
+const dataLinks = s => `<span class="bt-data">Data: `
+    + (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / ' : '')
+    + link(`${NDBC}/station_page.php?station=${s.id}`, `NDBC ${s.id}`) + `</span>`;
 
 function popupHtml(s) {
     const head = `<div class="bt-name">${s.name}</div>`
                + `<div class="bt-sub">${buoyLabel(s)}</div><br>`;
-    const stationLink = `<a class="bt-download" href="${sourceUrl(s)}" target="_blank">${sourceName(s)}</a>`;
     if (s.last_c == null) {
         return `<div class="bt-popup">${head}<span class="bt-note">No water temperature reported in the past `
-             + `${latest.recent_days} days.</span><br><br>${stationLink}</div>`;
+             + `${latest.recent_days} days.</span><br><br>${dataLinks(s)}</div>`;
     }
     const [statusText, statusColor] = STATUS[s.status](s);
     const when = pacific(s.last_time_ms, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric',
@@ -242,12 +243,11 @@ function popupHtml(s) {
         + `<div class="bt-seg">${seg}</div>`
         + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}"></canvas>`
         + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
-        + (s.clim_years ? `<button class="bt-toggle" style="margin-top:6px;" onclick="btClim('${s.id}', this)" `
+        + (s.clim_years ? `<button class="bt-toggle on" style="margin-top:6px;" onclick="btClim('${s.id}', this)" `
            + `title="Daily mean, 10th and 90th percentile from this buoy's ${s.clim_years[0]}–${s.clim_years[1]} record `
            + `(NDBC archive)">Climatology</button>` : '') + '<br><br>'
         + `<a class="bt-download" href="data/stations/${s.id}.csv" download="NDBC_${s.id}_water_temp.csv">Download data here</a>`
-        + ` <span class="bt-note">·</span> <a class="bt-source" style="display:inline;" `
-        + `href="${sourceUrl(s)}" target="_blank" title="${sourceName(s)}">Data source</a>`
+        + ` <span class="bt-note">·</span> ${dataLinks(s)}`
         + `</div>`;
 }
 
@@ -318,7 +318,8 @@ function drawChart(id) {
 }
 
 async function openChart(id) {
-    chartState[id] = {win: DEFAULT_WINDOW, clim: false};  // matches the freshly drawn popup buttons
+    // climatology shown by default when the buoy has one; matches the freshly drawn popup buttons
+    chartState[id] = {win: DEFAULT_WINDOW, clim: Boolean(latest.stations.find(s => s.id === id).clim_years)};
     if (!stationData[id]) {
         try {
             stationData[id] = await (await fetch(`data/stations/${id}.json`, {cache: 'no-cache'})).json();
