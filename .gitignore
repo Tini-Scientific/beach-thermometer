@@ -1,0 +1,6 @@
+# written by update.py on every run and published straight to Pages
+site/data/
+# NDBC yearly archives cached by build_climatology.py
+data/historical/
+__pycache__/
+.DS_Store

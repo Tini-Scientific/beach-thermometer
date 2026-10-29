@@ -1,0 +1,48 @@
+# Hourly: fetch the latest NDBC buoy data, commit the small archive, and
+# publish the site (site/ with freshly written site/data/) to GitHub Pages.
+# Repository settings needed once: Settings -> Pages -> Source: "GitHub Actions".
+name: Update and deploy
+
+on:
+  schedule:
+    - cron: '20 * * * *'  # 20 past each hour (NDBC posts ~25-50 min after each observation)
+  workflow_dispatch:       # "Run workflow" button for manual updates
+  push:
+    branches: [main]
+
+permissions:
+  contents: write  # commit the archive
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Fetch NDBC data and write site data
+        run: python update.py
+      - name: Commit archive
+        run: |
+          git config user.name 'beachthermometer-bot'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add data/archive
+          git diff --cached --quiet || git commit -m "Archive update $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
