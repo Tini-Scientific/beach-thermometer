@@ -15,7 +15,16 @@
     --federal-blue: #1E0253; --fandango: #C637A0; --silver: #BCB1A9; --heatwave-red: #D7263D;
 }
 html, body { margin: 0; height: 100%; background: #1a1a1a; }
-#map { position: absolute; inset: 0; }
+body { display: flex; flex-direction: column; }
+#map { position: relative; flex: 1; }
+
+/* page header bar above the map */
+.bt-page-header {
+    background: var(--federal-blue); border-bottom: 2px solid var(--fandango); color: white;
+    padding: 10px 20px 11px; z-index: 1001; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.bt-page-header h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.01em; }
+.bt-page-header p { margin: 2px 0 0; font-size: 13px; color: var(--silver); }
 .bt-font { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; }
 
 /* info panel, bottom left */
@@ -52,7 +61,7 @@ html, body { margin: 0; height: 100%; background: #1a1a1a; }
 .bt-sort button:first-child { border-left-width: 1px; border-radius: 8px 0 0 8px; }
 .bt-sort button:last-child { border-radius: 0 8px 8px 0; }
 .bt-sort button.on { background: var(--fandango); color: white; }
-.bt-list-rows { max-height: calc(100vh - 510px); min-height: 80px; overflow-y: auto; padding: 4px 0; }
+.bt-list-rows { max-height: calc(100vh - 580px); min-height: 80px; overflow-y: auto; padding: 4px 0; }
 .bt-list.collapsed .bt-list-rows { display: none; }
 .bt-list.collapsed .bt-list-head { border-bottom: none; padding-bottom: 10px; }
 .bt-row { display: flex; align-items: center; gap: 8px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
@@ -64,7 +73,7 @@ html, body { margin: 0; height: 100%; background: #1a1a1a; }
 /* station markers (map and list, inline SVG drawn by markerHtml): the shape is the
    type (NDBC offshore buoys diamonds, CDIP wave buoys circles, IOOS moorings
    pentagons), the fill is the latest temperature on cmocean's thermal colormap
-   (0-35 °C, color bar top right), gray when no data; a thick red outline with a
+   (40-80 °F, color bar top right), gray when no data; a thick red outline with a
    pulsing ring for a suspected marine heatwave */
 .bt-mk-wrap { display: flex; align-items: center; justify-content: center; }
 .bt-mk { display: block; flex: none; overflow: visible; }
@@ -140,6 +149,12 @@ body.imperial .bt-imperial { display: inline; }
     .bt-popup, .bt-chart { width: 300px; }
     .bt-chart { height: 200px; }
     .bt-stats { left: 10px; bottom: 20px; padding: 8px 12px; min-width: 160px; }
+    .bt-page-header { padding: 8px 12px; }
+    .bt-list { width: 210px; }
+    .bt-row-anom { width: 50px; }
+    .bt-cbar { width: 112px; padding: 5px 8px 3px; font-size: 9px; }
+    .bt-page-header h1 { font-size: 20px; }
+    .bt-page-header p { font-size: 11px; }
     .bt-logo { height: 26px; margin-bottom: 4px; }
     .bt-value { font-size: 13px; }
     .bt-name { font-size: 16px; }
@@ -148,6 +163,10 @@ body.imperial .bt-imperial { display: inline; }
 </style>
 </head>
 <body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
+<header class="bt-page-header bt-font">
+  <h1>Beach Thermometer</h1>
+  <p>Live sea-surface temperatures from California's buoys and moorings, together on one map, so you can watch marine heatwaves unfold.</p>
+</header>
 <div id="map"></div>
 <div class="bt-stats bt-font">
   <img src="assets/logo.png" class="bt-logo" alt="Tini Scientific">
@@ -169,10 +188,11 @@ const DEFAULT_WINDOW = 'd45';
 const TZ = 'America/Los_Angeles';
 const NDBC = 'https://www.ndbc.noaa.gov';
 Chart.defaults.font.family = "'Montserrat', 'Helvetica Neue', sans-serif";
-// cmocean 'thermal' sampled at 15 evenly spaced points; markers span TEMP_RANGE_C
+// cmocean 'thermal' sampled at 15 evenly spaced points; markers span TEMP_RANGE_C (40-80 °F,
+// California's typical range with room for heatwaves; readings beyond it take the end colors)
 const THERMAL = ['#042333', '#092f59', '#1f3487', '#4635a0', '#634198', '#7c4d90', '#95568a', '#b15f82',
                  '#cc6873', '#e4735f', '#f5864a', '#fba13d', '#fabe3f', '#f4dc4b', '#e8fa5b'];
-const TEMP_RANGE_C = [0, 35];
+const TEMP_RANGE_C = [(40 - 32) * 5 / 9, (80 - 32) * 5 / 9];
 function tempColor(c) {
     const t = Math.min(Math.max((c - TEMP_RANGE_C[0]) / (TEMP_RANGE_C[1] - TEMP_RANGE_C[0]), 0), 1) * (THERMAL.length - 1);
     const i = Math.min(Math.floor(t), THERMAL.length - 2), f = t - i;
@@ -387,8 +407,8 @@ const ColorbarCtrl = L.Control.extend({
     onAdd: () => {
         const div = L.DomUtil.create('div', 'bt-cbar leaflet-bar bt-font');
         const [c0, c1] = TEMP_RANGE_C, pos = c => `${(100 * (c - c0) / (c1 - c0)).toFixed(1)}%`;
-        const ticksC = [0, 5, 10, 15, 20, 25, 30, 35].map(c => `<span style="left:${pos(c)}">${c}</span>`).join('');
-        const ticksF = [40, 50, 60, 70, 80, 90].map(f => `<span style="left:${pos((f - 32) * 5 / 9)}">${f}</span>`).join('');
+        const ticksC = [5, 10, 15, 20, 25].map(c => `<span style="left:${pos(c)}">${c}</span>`).join('');
+        const ticksF = [40, 50, 60, 70, 80].map(f => `<span style="left:${pos((f - 32) * 5 / 9)}">${f}</span>`).join('');
         div.innerHTML = `<div class="bt-cbar-title">Water temperature `
             + `<span class="bt-metric">(°C)</span><span class="bt-imperial">(°F)</span></div>`
             + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${THERMAL.join(', ')});"></div>`
