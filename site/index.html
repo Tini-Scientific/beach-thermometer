@@ -13,63 +13,79 @@
 /* Tini colors, as in the Magnuson Park draft map (BoB_261028) */
 :root {
     --federal-blue: #1E0253; --fandango: #C637A0; --silver: #BCB1A9; --heatwave-red: #D7263D;
+    /* panels: a deep ocean ink (blue-black with a hint of violet) instead of saturated purple;
+       Tini magenta is kept as the accent, used sparingly */
+    --ink: #121826; --ink-panel: rgba(18,24,38,0.86); --hairline: rgba(255,255,255,0.10); --muted: #A3ACBD;
 }
 html, body { margin: 0; height: 100%; background: #1a1a1a; }
 body { display: flex; flex-direction: column; }
 #map { position: relative; flex: 1; }
 
-/* page header bar above the map */
+/* page header bar above the map: title and description on the left; on the right,
+   "Data by" (operators, in a box) and "Dashboard by" (Tini logo), separated by a hairline */
 .bt-page-header {
-    background: var(--federal-blue); border-bottom: 2px solid var(--fandango); color: white;
-    padding: 10px 20px 11px; z-index: 1001; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    background: var(--ink); border-bottom: 1px solid var(--hairline); color: white;
+    background-image: linear-gradient(90deg, rgba(198,55,160,0.10), rgba(18,24,38,0) 45%);
+    padding: 16px 28px; z-index: 1001; box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    display: flex; align-items: center; gap: 40px;
 }
-.bt-page-header h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.01em; }
-.bt-page-header p { margin: 2px 0 0; font-size: 13px; color: var(--silver); }
+.bt-page-title { flex: 1; min-width: 0; }
+.bt-page-header h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.005em; line-height: 1.15; }
+/* title in a cold-to-hot gradient (blue to red), like a thermometer */
+.bt-page-header h1 {
+    background: linear-gradient(90deg, #4FC3F7 0%, #A78BFA 40%, #F472B6 70%, #FF4D4D 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-block;
+}
+.bt-page-header p { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: white; max-width: 640px; opacity: 0.92; }
+.bt-credits { display: flex; align-items: stretch; gap: 22px; font-size: 11px; color: var(--muted); flex: none; }
+.bt-credits .by { padding-left: 22px; border-left: 1px solid var(--hairline); display: flex; flex-direction: column; }
+.bt-credit-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px; }
+.bt-credit-box {
+    border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); border-radius: 8px; padding: 6px 10px;
+    max-width: 460px; color: var(--muted); font-size: 10.5px; line-height: 1.55;
+}
+.bt-credits img { height: 34px; width: auto; display: block; margin-top: 2px; }
 .bt-font { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; }
 
-/* info panel, bottom left */
-.bt-stats {
-    position: fixed; bottom: 30px; left: 30px; z-index: 1000;
-    background: rgba(30,2,83,0.92); padding: 14px 20px; border-radius: 10px;
-    border: 1px solid var(--fandango); color: white; min-width: 210px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-.bt-logo { height: 40px; width: auto; display: block; margin-bottom: 8px; }
+/* summary at the top of the station panel: title, counts, update time */
+.bt-summary { padding: 12px 14px 6px; }
 .bt-header {
     font-size: 11px; font-weight: 600; color: var(--silver); letter-spacing: 0.04em;
-    margin-bottom: 10px; border-bottom: 1px solid var(--fandango); padding-bottom: 6px;
+    margin-bottom: 10px; border-bottom: 1px solid var(--hairline); padding-bottom: 6px;
 }
-.bt-table { width: 100%; border-spacing: 0 6px; }
-.bt-label { color: var(--silver); font-size: 11px; }
+.bt-table { width: 100%; border-spacing: 0 4px; }
+.bt-label { color: var(--muted); font-size: 11px; }
 .bt-value { font-size: 15px; font-weight: 700; text-align: right; }
 
 /* station list (Leaflet control, top left under the zoom buttons) */
 .bt-list {
-    background: rgba(30,2,83,0.92); border: 1px solid var(--fandango); border-radius: 10px; color: white;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 290px; overflow: hidden;
+    background: var(--ink-panel); border: 1px solid var(--hairline); border-radius: 12px; color: white;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 380px; overflow: hidden;  /* room for station names */
 }
 .bt-list-head {
     font-size: 11px; font-weight: 600; color: var(--silver); letter-spacing: 0.04em; padding: 8px 14px 6px;
-    border-bottom: 1px solid var(--fandango); user-select: none; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--hairline); user-select: none; display: flex; align-items: center; gap: 8px;
 }
 .bt-list-title, .bt-caret { cursor: pointer; }
 .bt-list-title { flex: 1; }
-.bt-sort { display: flex; }
-.bt-sort button {
-    font-family: inherit; font-size: 10px; font-weight: 600; padding: 2px 7px; cursor: pointer;
-    background: transparent; color: var(--silver); border: 1px solid var(--fandango); border-left-width: 0;
-}
-.bt-sort button:first-child { border-left-width: 1px; border-radius: 8px 0 0 8px; }
-.bt-sort button:last-child { border-radius: 0 8px 8px 0; }
-.bt-sort button.on { background: var(--fandango); color: white; }
-.bt-list-rows { max-height: calc(100vh - 615px);  /* refined in fit() */ min-height: 80px; overflow-y: auto; padding: 4px 0;
+.bt-list-rows { max-height: calc(100vh - 420px);  /* refined in fit() */ min-height: 80px; overflow-y: auto; padding: 4px 0;
                 box-sizing: border-box; }
 .bt-list.collapsed .bt-list-rows { display: none; }
 .bt-list.collapsed .bt-list-head { border-bottom: none; padding-bottom: 10px; }
 .bt-row { display: flex; align-items: center; gap: 8px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
-.bt-row:hover { background: rgba(198,55,160,0.25); }
-.bt-row-anom { width: 62px; text-align: right; white-space: nowrap; color: var(--silver); }
+.bt-row:hover { background: rgba(255,255,255,0.06); }
+.bt-row-anom { width: 66px; text-align: right; white-space: nowrap; color: var(--silver); }
 .bt-row-anom.hw { color: #FF5A6A; font-weight: 700; }
 .bt-cols { display: flex; gap: 8px; padding: 6px 14px 2px; font-size: 10px; color: var(--silver); letter-spacing: 0.03em; }
+/* column headers sort the list; the active one is white with an arrow */
+.bt-cols span[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+.bt-cols span[data-sort]:hover, .bt-cols span.on { color: white; }
+.bt-cols span.on::after { content: ' ▾'; }
+.bt-cols span.on.rev::after { content: ' ▴'; }
+.bt-row-loc, .bt-col-loc { width: 44px; text-align: right; white-space: nowrap; color: var(--silver); }
+.bt-col-temp, .bt-row-temp { width: 54px; text-align: right; }
+.bt-col-anom { width: 66px; text-align: right; }
 
 /* station markers (map and list, inline SVG drawn by markerHtml): the shape is the
    type (NDBC offshore buoys diamonds, CDIP wave buoys circles, IOOS moorings
@@ -81,10 +97,10 @@ body { display: flex; flex-direction: column; }
 .leaflet-marker-icon .bt-mk { filter: drop-shadow(0 0 1.2px rgba(0,0,0,0.7)); }
 
 /* color bar (Leaflet control, top right) */
-.bt-cbar { background: white; padding: 6px 10px 4px; border-radius: 4px; width: 170px; font-size: 10px; color: #444; }
-.bt-cbar-title { font-weight: 600; margin-bottom: 4px; letter-spacing: 0.03em; }
-.bt-cbar-grad { height: 10px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.25); }
-.bt-cbar-ticks { position: relative; height: 14px; }
+.bt-cbar { background: white; padding: 8px 12px 5px; border-radius: 4px; width: 216px; font-size: 11px; color: #444; }
+.bt-cbar-title { font-weight: 700; font-size: 13px; color: var(--ink); margin-bottom: 5px; letter-spacing: 0.02em; }
+.bt-cbar-grad { height: 16px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.25); }
+.bt-cbar-ticks { position: relative; height: 16px; }
 .bt-cbar-ticks span { position: absolute; top: 2px; transform: translateX(-50%); }
 .bt-cbar-ticks.f { display: none; }
 body.imperial .bt-cbar-ticks.c { display: none; }
@@ -94,10 +110,10 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 @media (prefers-reduced-motion: reduce) { .bt-mk .pulse { display: none; } }
 
 /* type filter buttons in the list header (also the legend) */
-.bt-filter { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 6px; border-bottom: 1px solid rgba(198,55,160,0.5); }
+.bt-filter { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 6px; border-bottom: 1px solid var(--hairline); }
 .bt-filter button {
     display: flex; align-items: center; gap: 8px; font-family: inherit; font-size: 11px; color: white; cursor: pointer;
-    background: transparent; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 4px 8px; text-align: left;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 8px; padding: 4px 8px; text-align: left;
 }
 .bt-filter button.off { opacity: 0.4; }
 .bt-filter button .n { margin-left: auto; color: var(--silver); }
@@ -107,12 +123,15 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-row-temp { font-weight: 700; white-space: nowrap; }
 .bt-row-temp.none { color: var(--silver); font-weight: 400; }
 
-/* unit toggle (Leaflet control) */
-.bt-unit-btn {
-    background: white; border: none; display: block; width: 100%; padding: 6px 14px; cursor: pointer;
-    text-align: center; font-size: 11px; font-weight: 600; color: #444; letter-spacing: 0.04em; line-height: 1.5;
+/* °F / °C switch (Leaflet control): both options shown, the active one filled */
+.bt-units { display: flex; width: 240px; background: white; overflow: hidden; }
+.bt-units button {
+    flex: 1; border: none; background: white; padding: 6px 0; cursor: pointer; font-family: inherit;
+    font-size: 12px; font-weight: 600; color: #666;
 }
-.bt-unit-btn:hover { background: #f4f4f4; color: var(--federal-blue); }
+.bt-units button + button { border-left: 1px solid #ccc; }
+.bt-units button:hover { background: #f4f4f4; }
+.bt-units button.on { background: var(--ink); color: white; }
 .bt-imperial { display: none; }
 body.imperial .bt-metric { display: none; }
 body.imperial .bt-imperial { display: inline; }
@@ -149,14 +168,22 @@ body.imperial .bt-imperial { display: inline; }
 @media (max-width: 540px) {
     .bt-popup, .bt-chart { width: 300px; }
     .bt-chart { height: 200px; }
-    .bt-stats { left: 10px; bottom: 20px; padding: 8px 12px; min-width: 160px; }
-    .bt-page-header { padding: 8px 12px; }
+    .bt-page-header { padding: 10px 14px; }
     .bt-list { width: 210px; }
-    .bt-row-anom { width: 50px; }
-    .bt-cbar { width: 112px; padding: 5px 8px 3px; font-size: 9px; }
-    .bt-page-header h1 { font-size: 20px; }
-    .bt-page-header p { font-size: 11px; }
-    .bt-logo { height: 26px; margin-bottom: 4px; }
+    .bt-row-anom, .bt-col-anom { width: 50px; }
+    .bt-row-loc, .bt-col-loc { display: none; }  /* no room on phones */
+    .bt-cbar { width: 130px; padding: 5px 8px 3px; font-size: 9px; }
+    .bt-cbar-title { font-size: 11px; }
+    .bt-units { width: 154px; }
+    .bt-units button { font-size: 10px; }
+    .bt-page-header h1 { font-size: 22px; }
+    .bt-page-header p { font-size: 12px; margin-top: 3px; }
+    .bt-page-header { flex-wrap: wrap; gap: 6px; }
+    .bt-credits { font-size: 9px; width: 100%; }
+    .bt-credits .by { flex-direction: row; align-items: center; gap: 6px; padding-left: 0; border-left: none; }
+    .bt-credits .by .bt-credit-label { margin: 0; }
+    .bt-credits .data { display: none; }  /* no room on phones */
+    .bt-credits img { height: 20px; }
     .bt-value { font-size: 13px; }
     .bt-name { font-size: 16px; }
     .bt-temp { font-size: 20px; }
@@ -165,19 +192,22 @@ body.imperial .bt-imperial { display: inline; }
 </head>
 <body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
 <header class="bt-page-header bt-font">
-  <h1>Beach Thermometer</h1>
-  <p>Live sea-surface temperatures from California's buoys, moorings, tide gauges and shore stations, together on one map, so you can watch marine heatwaves unfold.</p>
+  <div class="bt-page-title">
+    <h1>Beach Thermometer</h1>
+    <p>Hourly water temperatures from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves.</p>
+  </div>
+  <div class="bt-credits">
+    <div class="data">
+      <div class="bt-credit-label">Data by</div>
+      <div class="bt-credit-box">NOAA (NDBC, CO-OPS, U.S. IOOS) · Scripps Institution of Oceanography (CDIP) · MBARI · UC Davis Bodega Marine Laboratory · SCCOOS · CeNCOOS · Cal Poly Humboldt · Cal Poly San Luis Obispo · UC Santa Cruz · Moss Landing Marine Laboratories · Monterey Bay Aquarium · SFSU Romberg Tiburon Center · Exploratorium</div>
+    </div>
+    <div class="by">
+      <div class="bt-credit-label">Dashboard by</div>
+      <img src="assets/logo.png" alt="Tini Scientific">
+    </div>
+  </div>
 </header>
 <div id="map"></div>
-<div class="bt-stats bt-font">
-  <img src="assets/logo.png" class="bt-logo" alt="Tini Scientific">
-  <div class="bt-header">Real-time Water Temperature</div>
-  <table class="bt-table">
-    <tr><td class="bt-label">Stations reporting</td><td class="bt-value" id="bt-n-reporting">–</td></tr>
-    <tr><td class="bt-label">Suspected marine heatwaves</td><td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>
-    <tr><td class="bt-label">Updated</td><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>
-  </table>
-</div>
 <script>
 // ---- settings -------------------------------------------------------------
 // suspected marine heatwaves are red (marker and status text); everything else keeps the normal colors
@@ -380,9 +410,10 @@ function btClim(id, btn) {
     btn.classList.toggle('on', chartState[id].clim);
     drawChart(id);
 }
-function btToggleUnits() {
-    const isImp = document.body.classList.toggle('imperial');
-    document.querySelectorAll('.bt-unit-btn').forEach(b => { b.textContent = isImp ? 'Imperial [°F]' : 'Metric [°C]'; });
+function btSetUnits(u) {
+    const isImp = u === 'f';
+    document.body.classList.toggle('imperial', isImp);
+    document.querySelectorAll('.bt-units button').forEach(b => b.classList.toggle('on', b.dataset.unit === u));
     Object.keys(charts).forEach(id => { if (document.getElementById(`bt-canvas-${id}`)) drawChart(id); });
 }
 
@@ -393,19 +424,8 @@ const baseLayers = {
     'Ocean / Bathymetry': L.tileLayer(esri('Ocean/World_Ocean_Base'), {attribution: 'Esri World Ocean Base', maxZoom: 13}),
     'Satellite': L.tileLayer(esri('World_Imagery'), {attribution: 'Esri World Imagery', maxZoom: 19}),
 };
-const map = L.map('map', {layers: [baseLayers['Ocean / Bathymetry']]}).setView([36.6, -121.5], 6);
-L.control.layers(baseLayers, null, {collapsed: window.innerWidth < 540}).addTo(map);
-const UnitCtrl = L.Control.extend({
-    options: {position: 'topright'},
-    onAdd: () => {
-        const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-        div.style.marginTop = '6px';
-        div.innerHTML = '<button class="bt-unit-btn bt-font" onclick="btToggleUnits()">Imperial [°F]</button>';
-        L.DomEvent.disableClickPropagation(div);
-        return div;
-    },
-});
-map.addControl(new UnitCtrl());
+const map = L.map('map', {layers: [baseLayers['Ocean / Bathymetry']], zoomControl: false}).setView([36.6, -121.5], 6);
+// top right: color bar, then °F/°C toggle; bottom right: zoom buttons above the base-map choice
 // color bar for the marker fill, ticked in whichever unit is showing
 const ColorbarCtrl = L.Control.extend({
     options: {position: 'topright'},
@@ -422,6 +442,21 @@ const ColorbarCtrl = L.Control.extend({
     },
 });
 map.addControl(new ColorbarCtrl());
+// both units always visible; the active one is highlighted, so it reads as a switch
+const UnitCtrl = L.Control.extend({
+    options: {position: 'topright'},
+    onAdd: () => {
+        const div = L.DomUtil.create('div', 'bt-units leaflet-bar leaflet-control bt-font');
+        div.innerHTML = '<button data-unit="f" class="on" onclick="btSetUnits(\'f\')">Imperial °F</button>'
+                      + '<button data-unit="c" onclick="btSetUnits(\'c\')">Metric °C</button>';
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+    },
+});
+map.addControl(new UnitCtrl());
+// bottom-corner controls stack upward in the order added: base-map choice first, so the zoom buttons sit above it
+L.control.layers(baseLayers, null, {collapsed: window.innerWidth < 540, position: 'bottomright'}).addTo(map);
+L.control.zoom({position: 'bottomright'}).addTo(map);
 // charts drawn before Montserrat finished loading fall back to another font; redraw once it's in
 document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
     if (document.getElementById(`bt-canvas-${id}`)) drawChart(id);
@@ -430,7 +465,7 @@ document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
 // Station list: marker symbol, name, latest temperature and the difference
 // from today's climatology (past 24 h), sorted north to south or A–Z; the
 // type buttons at the top are the legend and filter the list and the map.
-// Clicking a row opens that buoy's popup. Starts collapsed on phones.
+// Clicking a row opens that buoy's popup. Starts collapsed (summary only).
 const TYPES = {ndbc: 'Offshore buoys (NDBC)', cdip: 'Wave buoys (CDIP)', ioos: 'Moorings (IOOS)',
                tide: 'Tide stations (NOAA)', shore: 'Shore stations (IOOS)'};
 const markers = {};
@@ -466,25 +501,42 @@ function markerHtml(s, inList = false) {
 const ListCtrl = L.Control.extend({
     options: {position: 'topleft'},
     onAdd: () => {
-        const div = L.DomUtil.create('div', 'bt-list bt-font' + (window.innerWidth < 540 ? ' collapsed' : ''));
-        const order = {ns: (a, b) => b.lat - a.lat, az: (a, b) => a.name.localeCompare(b.name)};
-        let sortKey = 'ns';
+        const div = L.DomUtil.create('div', 'bt-list bt-font collapsed');
+        // sort keys: the column headers; dir 1 is each column's natural order (north to south,
+        // A-Z, warmest first, largest anomaly first), -1 reverses it; no-data rows stay last
+        const order = {loc: s => -s.lat, name: s => s.name, temp: s => -s.last_c, anom: s => -s.anom_c};
+        let sortKey = 'loc', sortDir = 1;
+        const compare = (a, b) => {
+            const va = order[sortKey](a), vb = order[sortKey](b);
+            const na = va == null || Number.isNaN(va), nb = vb == null || Number.isNaN(vb);
+            if (na || nb) return na - nb;
+            return sortDir * (typeof va === 'string' ? va.localeCompare(vb) : va - vb);
+        };
         const filters = Object.entries(TYPES).map(([t, label]) =>
             `<button data-type="${t}">${markerHtml({type: t, legend: true}, true)}${label}`
             + `<span class="n">${stationList.filter(s => s.type === t).length}</span></button>`).join('');
-        div.innerHTML = `<div class="bt-list-head"><span class="bt-list-title">STATIONS</span>`
-                      + `<span class="bt-sort"><button data-sort="ns" class="on" title="North to south">N→S</button>`
-                      + `<button data-sort="az" title="Alphabetical">A–Z</button></span>`
+        div.innerHTML = `<div class="bt-summary">`
+                      + `<table class="bt-table">`
+                      + `<tr><td class="bt-label">Stations reporting</td><td class="bt-value" id="bt-n-reporting">–</td></tr>`
+                      + `<tr><td class="bt-label">Suspected marine heatwaves</td>`
+                      + `<td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>`
+                      + `<tr><td class="bt-label">Updated</td><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>`
+                      + `</table></div>`
+                      + `<div class="bt-list-head"><span class="bt-list-title">STATIONS</span>`
                       + `<span class="bt-caret">▾</span></div>`
                       + `<div class="bt-filter">${filters}<div class="bt-hw-note">`
                       + `${markerHtml({type: 'cdip', legend: true, status: 'heatwave'}, true)}Suspected marine heatwave</div></div>`
-                      + `<div class="bt-cols"><span style="flex:1;">Station</span><span>Temp</span>`
-                      + `<span style="width:62px;text-align:right;">vs. normal</span></div>`
+                      + `<div class="bt-cols"><span style="width:14px;"></span>`
+                      + `<span data-sort="name" style="flex:1;" title="Sort by name">Name</span>`
+                      + `<span data-sort="loc" class="bt-col-loc on" title="Sort by latitude">Location</span>`
+                      + `<span data-sort="temp" class="bt-col-temp" title="Sort by temperature">Temp</span>`
+                      + `<span data-sort="anom" class="bt-col-anom" title="Sort by difference from normal">Vs. Normal</span></div>`
                       + `<div class="bt-list-rows"></div>`;
         const fill = () => {
             div.querySelector('.bt-list-rows').innerHTML = stationList.filter(s => !hiddenTypes.has(s.type))
-                .sort(order[sortKey]).map(s =>
+                .sort(compare).map(s =>
                 `<div class="bt-row" data-id="${s.id}">${markerHtml(s, true)}<span class="bt-row-name">${s.name}</span>`
+                + `<span class="bt-row-loc">${s.lat.toFixed(1)}°N</span>`
                 + (s.last_c != null ? `<span class="bt-row-temp">${bothUnits(s.last_c)}</span>`
                                     : `<span class="bt-row-temp none">no data</span>`)
                 + `<span class="bt-row-anom${s.status === 'heatwave' ? ' hw' : ''}">`
@@ -492,19 +544,23 @@ const ListCtrl = L.Control.extend({
             div.querySelectorAll('.bt-row').forEach(r => { r.onclick = () => markers[r.dataset.id].openPopup(); });
         };
         fill();
-        // keep the list's rows above the info panel (bottom left), whatever the window size
+        // let the list's rows run to the bottom of the window, whatever its size
         const fit = () => {
             const rows = div.querySelector('.bt-list-rows');
-            const room = document.querySelector('.bt-stats').getBoundingClientRect().top - rows.getBoundingClientRect().top - 12;
+            const room = window.innerHeight - rows.getBoundingClientRect().top - 24;
             rows.style.maxHeight = `${Math.max(room, 80)}px`;
         };
         setTimeout(fit, 0);
         document.fonts.ready.then(fit);  // fonts shift the layout a little
         window.addEventListener('resize', fit);
-        div.querySelectorAll('.bt-sort button').forEach(b => {
-            b.onclick = () => {
-                div.querySelectorAll('.bt-sort button').forEach(x => x.classList.toggle('on', x === b));
-                sortKey = b.dataset.sort;
+        div.querySelectorAll('.bt-cols span[data-sort]').forEach(h => {
+            h.onclick = () => {
+                sortDir = h.dataset.sort === sortKey ? -sortDir : 1;  // same column again reverses
+                sortKey = h.dataset.sort;
+                div.querySelectorAll('.bt-cols span[data-sort]').forEach(x => {
+                    x.classList.toggle('on', x === h);
+                    x.classList.toggle('rev', x === h && sortDir === -1);
+                });
                 fill();
             };
         });
@@ -519,7 +575,7 @@ const ListCtrl = L.Control.extend({
                 fill();
             };
         });
-        div.querySelectorAll('.bt-list-title, .bt-caret').forEach(el => { el.onclick = () => div.classList.toggle('collapsed'); });
+        div.querySelectorAll('.bt-list-title, .bt-caret').forEach(el => { el.onclick = () => { div.classList.toggle('collapsed'); fit(); }; });  // size the rows once they're visible
         L.DomEvent.disableClickPropagation(div);
         L.DomEvent.disableScrollPropagation(div);
         return div;
@@ -530,9 +586,6 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
     latest = data;
     const reporting = data.stations.filter(s => s.last_c != null);
     stationList = data.stations;
-    document.getElementById('bt-n-reporting').textContent = `${reporting.length} of ${data.stations.length}`;
-    document.getElementById('bt-n-heatwave').textContent = data.stations.filter(s => s.status === 'heatwave').length;
-    document.getElementById('bt-updated').textContent = pacific(data.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
     data.stations.forEach(s => {
         const has = s.last_c != null;
         const m = L.marker([s.lat, s.lon], {icon: L.divIcon({className: 'bt-mk-wrap', iconSize: [28, 28],
@@ -550,9 +603,13 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
         // ?station=46026 opens that buoy's popup (shareable links)
         if (new URLSearchParams(location.search).get('station') === s.id) m.openPopup();
     });
-    map.addControl(new ListCtrl());
+    map.addControl(new ListCtrl());  // also holds the summary counts filled in here
+    document.getElementById('bt-n-reporting').textContent = `${reporting.length} of ${data.stations.length}`;
+    document.getElementById('bt-n-heatwave').textContent = data.stations.filter(s => s.status === 'heatwave').length;
+    document.getElementById('bt-updated').textContent = pacific(data.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
 }).catch(() => {
-    document.getElementById('bt-updated').textContent = 'data unavailable';
+    document.getElementById('map').insertAdjacentHTML('beforeend', '<div class="bt-font" style="position:absolute;'
+        + 'top:10px;left:60px;z-index:1000;background:white;padding:6px 10px;border-radius:4px;">Data unavailable right now</div>');
 });
 </script>
 </body>
