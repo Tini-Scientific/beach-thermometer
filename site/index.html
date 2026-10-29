@@ -52,12 +52,20 @@ html, body { margin: 0; height: 100%; background: #1a1a1a; }
 .bt-sort button:first-child { border-left-width: 1px; border-radius: 8px 0 0 8px; }
 .bt-sort button:last-child { border-radius: 0 8px 8px 0; }
 .bt-sort button.on { background: var(--fandango); color: white; }
-.bt-list-rows { max-height: calc(100vh - 360px); min-height: 80px; overflow-y: auto; padding: 4px 0; }
+.bt-list-rows { max-height: calc(100vh - 420px); min-height: 80px; overflow-y: auto; padding: 4px 0; }
 .bt-list.collapsed .bt-list-rows { display: none; }
 .bt-list.collapsed .bt-list-head { border-bottom: none; padding-bottom: 10px; }
 .bt-row { display: flex; align-items: center; gap: 8px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
 .bt-row:hover { background: rgba(198,55,160,0.25); }
 .bt-dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid white; flex: none; }
+.bt-dot.diamond { width: 7px; height: 7px; border-radius: 1px; transform: rotate(45deg); margin: 0 1px; }
+/* NDBC offshore buoys are diamonds (Leaflet divIcon); CDIP wave buoys are circles */
+.bt-diamond-marker div {
+    width: 13px; height: 13px; margin: 3px; transform: rotate(45deg); border: 2px solid white;
+    border-radius: 2px; opacity: 0.95; box-shadow: 0 0 2px rgba(0,0,0,0.35);
+}
+.bt-legend { display: flex; gap: 14px; font-size: 11px; color: var(--silver); margin-top: 4px; }
+.bt-legend span { display: flex; align-items: center; gap: 6px; }
 .bt-row-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bt-row-temp { font-weight: 700; white-space: nowrap; }
 .bt-row-temp.none { color: var(--silver); font-weight: 400; }
@@ -121,6 +129,7 @@ body.imperial .bt-imperial { display: inline; }
     <tr><td class="bt-label">Suspected marine heatwaves</td><td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>
     <tr><td class="bt-label">Updated</td><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>
   </table>
+  <div class="bt-legend"><span><i class="bt-dot diamond" style="background:var(--fandango);"></i>Offshore buoy (NDBC)</span><span><i class="bt-dot" style="background:var(--fandango);"></i>Wave buoy (CDIP)</span></div>
 </div>
 <script>
 // ---- settings -------------------------------------------------------------
@@ -174,12 +183,20 @@ const STATUS = {
     warmer: () => ['warmer than usual', COLORS.text],
     cooler: () => ['cooler than usual', COLORS.text],
     normal: () => ['near normal', COLORS.text],
+    noclim: () => ['no climatology yet (record shorter than 8 years)', COLORS.text],
 };
+
+// popup subtitle and data-source link by buoy type
+const buoyLabel = s => (s.type === 'cdip' ? `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}` : `Offshore buoy · NDBC ${s.id}`)
+                     + (s.ndbc_name ? ` · ${s.ndbc_name}` : '');
+const sourceUrl = s => (s.type === 'cdip' ? `https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`
+                                         : `${NDBC}/station_page.php?station=${s.id}`);
+const sourceName = s => (s.type === 'cdip' ? `CDIP station ${s.cdip}` : `NOAA NDBC station ${s.id}`);
 
 function popupHtml(s) {
     const head = `<div class="bt-name">${s.name}</div>`
-               + `<div class="bt-sub">NDBC ${s.id} · ${s.ndbc_name}</div><br>`;
-    const stationLink = `<a class="bt-download" href="${NDBC}/station_page.php?station=${s.id}" target="_blank">NDBC station page</a>`;
+               + `<div class="bt-sub">${buoyLabel(s)}</div><br>`;
+    const stationLink = `<a class="bt-download" href="${sourceUrl(s)}" target="_blank">${sourceName(s)}</a>`;
     if (s.last_c == null) {
         return `<div class="bt-popup">${head}<span class="bt-note">No water temperature reported in the past `
              + `${latest.recent_days} days.</span><br><br>${stationLink}</div>`;
@@ -195,17 +212,17 @@ function popupHtml(s) {
         + `<span class="bt-note"> last recorded water temp (<span class="bt-age" data-t="${s.last_time_ms}">`
         + `${ageFlag(s.last_time_ms)}</span>)</span><br>`
         + `<span class="bt-when">${when}</span><br><br>`
-        + `<span class="bt-anom">${bothUnits(s.anom_c, true)} from climatology (past 24 h)</span><br>`
+        + (s.clim_years ? `<span class="bt-anom">${bothUnits(s.anom_c, true)} from climatology (past 24 h)</span><br>` : '')
         + `<span class="bt-status" style="color:${statusColor};">&ndash; ${statusText}</span>`
         + `<div class="bt-seg">${seg}</div>`
         + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}"></canvas>`
         + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
-        + `<button class="bt-toggle" style="margin-top:6px;" onclick="btClim('${s.id}', this)" `
-        + `title="Daily mean, 10th and 90th percentile from this buoy's ${latest.clim_years[0]}–${latest.clim_years[1]} `
-        + `NDBC archive (median ${s.n_years} years per day)">Climatology</button><br><br>`
+        + (s.clim_years ? `<button class="bt-toggle" style="margin-top:6px;" onclick="btClim('${s.id}', this)" `
+           + `title="Daily mean, 10th and 90th percentile from this buoy's ${s.clim_years[0]}–${s.clim_years[1]} record `
+           + `(NDBC archive)">Climatology</button>` : '') + '<br><br>'
         + `<a class="bt-download" href="data/stations/${s.id}.csv" download="NDBC_${s.id}_water_temp.csv">Download data here</a>`
         + ` <span class="bt-note">·</span> <a class="bt-source" style="display:inline;" `
-        + `href="${NDBC}/station_page.php?station=${s.id}" target="_blank" title="NOAA NDBC station ${s.id}">Data source</a>`
+        + `href="${sourceUrl(s)}" target="_blank" title="${sourceName(s)}">Data source</a>`
         + `</div>`;
 }
 
@@ -346,7 +363,8 @@ const ListCtrl = L.Control.extend({
                       + `<span class="bt-caret">▾</span></div><div class="bt-list-rows"></div>`;
         const fill = key => {
             div.querySelector('.bt-list-rows').innerHTML = [...stationList].sort(order[key]).map(s =>
-                `<div class="bt-row" data-id="${s.id}"><span class="bt-dot" style="background:${markerColor(s)};"></span>`
+                `<div class="bt-row" data-id="${s.id}"><span class="bt-dot${s.type === 'ndbc' ? ' diamond' : ''}" `
+                + `style="background:${markerColor(s)};"></span>`
                 + `<span class="bt-row-name">${s.name}</span>`
                 + (s.last_c != null ? `<span class="bt-row-temp">${bothUnits(s.last_c)}</span>`
                                     : `<span class="bt-row-temp none">no data</span>`) + `</div>`).join('');
@@ -375,8 +393,11 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
     document.getElementById('bt-updated').textContent = pacific(data.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
     data.stations.forEach(s => {
         const has = s.last_c != null;
-        const m = L.circleMarker([s.lat, s.lon], {radius: 11, color: 'white', weight: 2, fillOpacity: 0.9,
-                                                  fillColor: markerColor(s)}).addTo(map);
+        const m = (s.type === 'ndbc'
+            ? L.marker([s.lat, s.lon], {icon: L.divIcon({className: 'bt-diamond-marker', iconSize: [21, 21],
+                  html: `<div style="background:${markerColor(s)};"></div>`, popupAnchor: [0, -9], tooltipAnchor: [10, 0]})})
+            : L.circleMarker([s.lat, s.lon], {radius: 8, color: 'white', weight: 2, fillOpacity: 0.9,
+                                              fillColor: markerColor(s)})).addTo(map);
         m.bindTooltip(has ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
                           : `${s.name}: no recent water temperature`, {className: 'bt-font'});
         // pan popups clear of the zoom / layer / unit controls along the top

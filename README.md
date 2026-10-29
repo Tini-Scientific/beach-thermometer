@@ -1,7 +1,8 @@
 # Beach Thermometer
 
-Real-time water temperature at California's NDBC buoys, compared with each buoy's
-own 1991–2020 climatology, at [beachthermometer.com](https://beachthermometer.com).
+Real-time water temperature at California's NDBC offshore buoys (diamonds) and CDIP
+wave buoys (circles), compared with each buoy's own climatology (1991–2020 where the
+record allows; see `build_climatology.py`), at [beachthermometer.com](https://beachthermometer.com).
 A Tini Scientific project.
 
 Every hour a GitHub Actions job fetches the latest buoy data from NOAA's National
@@ -71,4 +72,5 @@ work: browsers block a file page from loading its data.)
 ## Data
 
 Buoy observations: NOAA National Data Buoy Center (realtime2 and historical
-standard meteorological files). Basemaps: Esri.
+standard meteorological files), including the Coastal Data Information Program (CDIP,
+Scripps Institution of Oceanography) wave buoys it distributes. Basemaps: Esri.
