@@ -12,8 +12,7 @@
 <style>
 /* Tini colors, as in the Magnuson Park draft map (BoB_261028) */
 :root {
-    --federal-blue: #1E0253; --fandango: #C637A0; --silver: #BCB1A9; --light-red: #FF717C;
-    --status-orange: #F28C28; --status-blue: #007AFF;
+    --federal-blue: #1E0253; --fandango: #C637A0; --silver: #BCB1A9; --heatwave-red: #D7263D;
 }
 html, body { margin: 0; height: 100%; background: #1a1a1a; }
 #map { position: absolute; inset: 0; }
@@ -34,6 +33,35 @@ html, body { margin: 0; height: 100%; background: #1a1a1a; }
 .bt-label { color: var(--silver); font-size: 11px; }
 .bt-value { font-size: 15px; font-weight: 700; text-align: right; }
 
+/* station list (Leaflet control, top left under the zoom buttons) */
+.bt-list {
+    background: rgba(30,2,83,0.92); border: 1px solid var(--fandango); border-radius: 10px; color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 230px; overflow: hidden;
+}
+.bt-list-head {
+    font-size: 11px; font-weight: 600; color: var(--silver); letter-spacing: 0.04em; padding: 8px 14px 6px;
+    border-bottom: 1px solid var(--fandango); user-select: none; display: flex; align-items: center; gap: 8px;
+}
+.bt-list-title, .bt-caret { cursor: pointer; }
+.bt-list-title { flex: 1; }
+.bt-sort { display: flex; }
+.bt-sort button {
+    font-family: inherit; font-size: 10px; font-weight: 600; padding: 2px 7px; cursor: pointer;
+    background: transparent; color: var(--silver); border: 1px solid var(--fandango); border-left-width: 0;
+}
+.bt-sort button:first-child { border-left-width: 1px; border-radius: 8px 0 0 8px; }
+.bt-sort button:last-child { border-radius: 0 8px 8px 0; }
+.bt-sort button.on { background: var(--fandango); color: white; }
+.bt-list-rows { max-height: calc(100vh - 360px); min-height: 80px; overflow-y: auto; padding: 4px 0; }
+.bt-list.collapsed .bt-list-rows { display: none; }
+.bt-list.collapsed .bt-list-head { border-bottom: none; padding-bottom: 10px; }
+.bt-row { display: flex; align-items: center; gap: 8px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
+.bt-row:hover { background: rgba(198,55,160,0.25); }
+.bt-dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid white; flex: none; }
+.bt-row-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-row-temp { font-weight: 700; white-space: nowrap; }
+.bt-row-temp.none { color: var(--silver); font-weight: 400; }
+
 /* unit toggle (Leaflet control) */
 .bt-unit-btn {
     background: white; border: none; display: block; width: 100%; padding: 6px 14px; cursor: pointer;
@@ -46,16 +74,16 @@ body.imperial .bt-imperial { display: inline; }
 
 /* popup */
 .bt-popup { width: 460px; }
-.bt-name { color: var(--federal-blue); font-size: 19px; font-weight: 700; }
-.bt-sub { color: #888; font-size: 13px; }
-.bt-temp { color: var(--fandango); font-size: 26px; font-weight: 700; }
-.bt-note { color: #888; font-size: 13px; }
-.bt-when { color: #555; font-size: 13px; }
-.bt-anom { color: var(--federal-blue); font-size: 14px; font-weight: 600; }
-.bt-status { font-size: 14px; font-weight: 700; }
+.bt-name { color: var(--federal-blue); font-size: 17px; font-weight: 700; }
+.bt-sub { color: #888; font-size: 12px; }
+.bt-temp { color: var(--fandango); font-size: 22px; font-weight: 700; }
+.bt-note { color: #888; font-size: 12px; }
+.bt-when { color: #555; font-size: 12px; }
+.bt-anom { color: var(--federal-blue); font-size: 13px; font-weight: 600; }
+.bt-status { font-size: 13px; font-weight: 700; }
 .bt-seg { display: flex; margin: 10px 0 6px 0; }
 .bt-window {
-    flex: 1; font-family: inherit; font-size: 13px; font-weight: 600; padding: 5px 0; cursor: pointer;
+    flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; padding: 4px 0; cursor: pointer;
     border: 1px solid var(--fandango); border-left-width: 0; background: white; color: var(--fandango);
 }
 .bt-window:first-child { border-left-width: 1px; border-radius: 12px 0 0 12px; }
@@ -65,12 +93,12 @@ body.imperial .bt-imperial { display: inline; }
 .bt-chart-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
 .bt-toggle-box { display: inline-block; text-align: center; margin: 6px 4px 0 0; }
 .bt-toggle {
-    font-family: inherit; font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 12px; cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer;
     border: 1px solid var(--federal-blue); background: white; color: var(--federal-blue); margin-bottom: 1px;
 }
 .bt-toggle.on { background: var(--federal-blue); color: white; }
 .bt-source { display: block; font-size: 11px; color: #888; text-decoration: underline; }
-.bt-download { color: var(--federal-blue); font-weight: 600; font-size: 14px; text-decoration: underline; }
+.bt-download { color: var(--federal-blue); font-weight: 600; font-size: 13px; text-decoration: underline; }
 .leaflet-popup-content { margin: 14px 16px; }
 
 @media (max-width: 540px) {
@@ -79,8 +107,8 @@ body.imperial .bt-imperial { display: inline; }
     .bt-stats { left: 10px; bottom: 20px; padding: 8px 12px; min-width: 160px; }
     .bt-logo { height: 26px; margin-bottom: 4px; }
     .bt-value { font-size: 13px; }
-    .bt-name { font-size: 17px; }
-    .bt-temp { font-size: 22px; }
+    .bt-name { font-size: 16px; }
+    .bt-temp { font-size: 20px; }
 }
 </style>
 </head>
@@ -91,17 +119,17 @@ body.imperial .bt-imperial { display: inline; }
   <div class="bt-header">Real-time Water Temperature</div>
   <table class="bt-table">
     <tr><td class="bt-label">Buoys reporting</td><td class="bt-value" id="bt-n-reporting">–</td></tr>
-    <tr><td class="bt-label">Suspected marine heatwaves</td><td class="bt-value" id="bt-n-heatwave" style="color:var(--light-red);">–</td></tr>
+    <tr><td class="bt-label">Suspected marine heatwaves</td><td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>
     <tr><td class="bt-label">Updated</td><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>
   </table>
 </div>
 <script>
 // ---- settings -------------------------------------------------------------
-const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', lightRed: '#FF717C',
-                orange: '#F28C28', blue: '#007AFF', noData: '#9E9E9E'};
+// suspected marine heatwaves are red (marker and status text); everything else keeps the normal colors
+const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', heatwave: '#D7263D', text: '#555', noData: '#9E9E9E'};
 // climatology bands as pale solid tints (mixed with white) so legend swatches match
 const BAND_HOT = 'rgb(253, 238, 223)', BAND_COLD = 'rgb(224, 239, 255)';
-const WINDOWS = {day: ['Day', 1], week: ['Week', 7], d45: ['45 days', 45]};
+const WINDOWS = {day: ['Day', 1], week: ['Week', 7], d30: ['30 days', 30], d45: ['45 days', 45]};
 const DEFAULT_WINDOW = 'd45';
 const TZ = 'America/Los_Angeles';
 const NDBC = 'https://www.ndbc.noaa.gov';
@@ -142,11 +170,11 @@ function dayOfYear(ms) {
 const streakDays = (s, n) => (s.streak_is_whole_record ? `${latest.recent_days}+` : n);
 
 const STATUS = {
-    heatwave: s => [`suspected marine heatwave (${streakDays(s, s.hot_days)} days above 90th pct.)`, COLORS.lightRed],
-    coldspell: s => [`suspected marine cold spell (${streakDays(s, s.cold_days)} days below 10th pct.)`, COLORS.blue],
-    warmer: () => ['warmer than usual', COLORS.orange],
-    cooler: () => ['cooler than usual', COLORS.blue],
-    normal: () => ['near normal', '#555'],
+    heatwave: s => [`suspected marine heatwave (${streakDays(s, s.hot_days)} days above 90th pct.)`, COLORS.heatwave],
+    coldspell: s => [`suspected marine cold spell (${streakDays(s, s.cold_days)} days below 10th pct.)`, COLORS.text],
+    warmer: () => ['warmer than usual', COLORS.text],
+    cooler: () => ['cooler than usual', COLORS.text],
+    normal: () => ['near normal', COLORS.text],
 };
 
 function popupHtml(s) {
@@ -213,7 +241,8 @@ function drawChart(id) {
     // order: higher draws first (underneath), so the buoy line (order 0) sits on top of the bands
     const band = {pointRadius: 0, borderWidth: 0, hidden: !st.clim, order: 2, pointStyle: 'rect'};
     const narrow = window.innerWidth < 540;
-    const step = days === 1 ? 6 * 3.6e6 : days === 7 ? (narrow ? 2 : 1) * 864e5 : (narrow ? 14 : 7) * 864e5;
+    const step = days === 1 ? 6 * 3.6e6 : days === 7 ? (narrow ? 2 : 1) * 864e5
+               : days === 30 ? (narrow ? 10 : 5) * 864e5 : (narrow ? 14 : 7) * 864e5;
     const tickLabel = v => days === 1 ? pacific(v, {hour: 'numeric'})
                                       : pacific(v, {month: 'short', day: 'numeric'});
     document.getElementById(`bt-msg-${id}`).textContent = temp.length ? '' : `No data in the past ${WINDOWS[st.win][0].toLowerCase()}`;
@@ -302,16 +331,54 @@ document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
     if (document.getElementById(`bt-canvas-${id}`)) drawChart(id);
 }));
 
+// Station list: status dot, name and latest temperature, sorted north to
+// south or A–Z (toggle in the header); clicking a row opens that buoy's
+// popup. Starts collapsed on phones.
+const markers = {};
+let stationList = [];
+const markerColor = s => (s.last_c == null ? COLORS.noData : s.status === 'heatwave' ? COLORS.heatwave : COLORS.fandango);
+const ListCtrl = L.Control.extend({
+    options: {position: 'topleft'},
+    onAdd: () => {
+        const div = L.DomUtil.create('div', 'bt-list bt-font' + (window.innerWidth < 540 ? ' collapsed' : ''));
+        const order = {ns: (a, b) => b.lat - a.lat, az: (a, b) => a.name.localeCompare(b.name)};
+        div.innerHTML = `<div class="bt-list-head"><span class="bt-list-title">STATIONS</span>`
+                      + `<span class="bt-sort"><button data-sort="ns" class="on" title="North to south">N→S</button>`
+                      + `<button data-sort="az" title="Alphabetical">A–Z</button></span>`
+                      + `<span class="bt-caret">▾</span></div><div class="bt-list-rows"></div>`;
+        const fill = key => {
+            div.querySelector('.bt-list-rows').innerHTML = [...stationList].sort(order[key]).map(s =>
+                `<div class="bt-row" data-id="${s.id}"><span class="bt-dot" style="background:${markerColor(s)};"></span>`
+                + `<span class="bt-row-name">${s.name}</span>`
+                + (s.last_c != null ? `<span class="bt-row-temp">${bothUnits(s.last_c)}</span>`
+                                    : `<span class="bt-row-temp none">no data</span>`) + `</div>`).join('');
+            div.querySelectorAll('.bt-row').forEach(r => { r.onclick = () => markers[r.dataset.id].openPopup(); });
+        };
+        fill('ns');
+        div.querySelectorAll('.bt-sort button').forEach(b => {
+            b.onclick = () => {
+                div.querySelectorAll('.bt-sort button').forEach(x => x.classList.toggle('on', x === b));
+                fill(b.dataset.sort);
+            };
+        });
+        div.querySelectorAll('.bt-list-title, .bt-caret').forEach(el => { el.onclick = () => div.classList.toggle('collapsed'); });
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        return div;
+    },
+});
+
 fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
     latest = data;
     const reporting = data.stations.filter(s => s.last_c != null);
+    stationList = data.stations;
     document.getElementById('bt-n-reporting').textContent = `${reporting.length} of ${data.stations.length}`;
     document.getElementById('bt-n-heatwave').textContent = data.stations.filter(s => s.status === 'heatwave').length;
     document.getElementById('bt-updated').textContent = pacific(data.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
     data.stations.forEach(s => {
         const has = s.last_c != null;
         const m = L.circleMarker([s.lat, s.lon], {radius: 11, color: 'white', weight: 2, fillOpacity: 0.9,
-                                                  fillColor: has ? COLORS.fandango : COLORS.noData}).addTo(map);
+                                                  fillColor: markerColor(s)}).addTo(map);
         m.bindTooltip(has ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
                           : `${s.name}: no recent water temperature`, {className: 'bt-font'});
         // pan popups clear of the zoom / layer / unit controls along the top
@@ -321,9 +388,11 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
             e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.innerHTML = ageFlag(Number(el.dataset.t)); });
             if (has) openChart(s.id);
         });
+        markers[s.id] = m;
         // ?station=46026 opens that buoy's popup (shareable links)
         if (new URLSearchParams(location.search).get('station') === s.id) m.openPopup();
     });
+    map.addControl(new ListCtrl());
 }).catch(() => {
     document.getElementById('bt-updated').textContent = 'data unavailable';
 });
