@@ -8,9 +8,13 @@ as in Hobday et al. 2016's marine heatwave definition), then smoothed with a
 SMOOTH_DAYS (31-day) running mean that wraps around the year end, also as in
 Hobday et al., so short records don't give a jumpy climatology.
 
-Stations: California's NDBC offshore buoys and CDIP wave buoys that reported
-water temperature in the past year (the same buoys as BoB_261028's
-CA_WaterTemp_SideBySide.png).
+Stations: California's NDBC offshore buoys, CDIP wave buoys and IOOS moorings
+that reported water temperature in the past year (the same stations as
+BoB_261028's CA_WaterTemp_SideBySide.png). Moorings are included only if they
+have a surface sensor (top 3 m, see ioos.py), to match the buoys; that leaves
+out CCE Mooring 4 (21 m) and the Orange County mini-mooring (20 m). The
+Imperial Beach Central (IB-C) mini-mooring is left out too: its surface sensor
+stopped on 2026-09-24 after a week of erratic readings (daily means 22-33 °C).
 
 Climatology period, per buoy: the WMO standard BASE_YEARS (1991-2020) when the
 buoy has at least MIN_BASE_YEARS years of data in it; otherwise every year
@@ -19,9 +23,10 @@ none (the site then shows the temperature without a climatology). NDBC's
 archive of CDIP buoys starts in 2004, so the older CDIP buoys use 2004-2020
 and the newer ones their whole record.
 
-Water temperature comes from NDBC's yearly standard-meteorological archives
-(CDIP buoys are archived there under their NDBC numbers), cached in
-data/historical/ (not committed). Re-run only to add stations or change the
+Buoy water temperature comes from NDBC's yearly standard-meteorological
+archives (CDIP buoys are archived there under their NDBC numbers); mooring
+water temperature from the IOOS ERDDAP server as daily means over the whole
+record. Both are cached in data/historical/ (not committed). Re-run only to add stations or change the
 method.
 """
 import gzip
@@ -32,6 +37,7 @@ import time
 import numpy as np
 import pandas as pd
 
+import ioos
 from ndbc import NDBC_URL, http, read_stdmet
 
 # NDBC offshore buoys: NDBC ID -> short name
@@ -56,9 +62,23 @@ CDIP_STATIONS = {'46244': ('168', 'Humboldt Bay North Spit'), '46213': ('094', '
 # positions for buoys missing from NDBC's active-station list (last known, from the IOOS catalog)
 FALLBACK_POSITIONS = {'46240': (36.626, -121.907)}
 
+# IOOS moorings with a surface sensor: ERDDAP dataset ID -> (short name, operator, lat, lon)
+IOOS_STATIONS = {
+    'bodega-marine-laboratory-bml-': ('Bodega Marine Lab Buoy', 'UC Davis Bodega Marine Laboratory', 38.3118, -123.083),
+    'oa2-mbari-buoy': ('MBARI OA2', 'MBARI', 37.1109, -122.3),
+    'org_mbari_m1': ('MBARI M1', 'MBARI', 36.7511, -122.0292),
+    'oa1-mbari-buoy-1': ('MBARI OA1', 'MBARI', 36.623, -121.9005),
+    'mini-mooring-deployment-off-sant': ('Santa Monica Mini-Mooring', 'Scripps', 33.9592, -118.4641),
+    'mini-mooring-deployment-off-del-': ('Del Mar Mini-Mooring', 'Scripps', 32.9497, -117.2829),
+    'del-mar-mooring-1': ('Del Mar Mooring', 'Scripps', 32.93, -117.32),
+    'imperial-beach-mini-mooring-ib-n': ('Imperial Beach North', 'Scripps', 32.6154, -117.1404),
+    'imperial-beach-mini-mooring-ib-w': ('Imperial Beach West', 'Scripps', 32.5816, -117.163),
+    'imperial-beach-mini-mooring-ib-s': ('Imperial Beach South', 'Scripps', 32.5396, -117.1512),
+}
+
 BASE_YEARS = (1991, 2020)
 MIN_BASE_YEARS = 15
-LAST_YEAR = pd.Timestamp.now().year - 1  # last complete year in NDBC's yearly archive
+LAST_YEAR = pd.Timestamp.now().year - 1  # last complete year (NDBC's yearly archive)
 MIN_YEARS = 8
 MIN_DAYS_PER_YEAR = 60  # a year counts toward the record with this many daily means
 CLIM_HALF_WINDOW_DAYS = 5
@@ -81,7 +101,10 @@ def station_table():
         attr = dict(re.findall(r'(\w+)="([^"]*)"', tag.group(0))) if tag else {}
         lat, lon = FALLBACK_POSITIONS.get(sid, (float(attr.get('lat', 'nan')), float(attr.get('lon', 'nan'))))
         rows.append({'station': sid, 'name': name, 'type': kind, 'cdip': cdip, 'lat': lat, 'lon': lon,
-                     'ndbc_name': attr.get('name', '')})
+                     'long_name': attr.get('name', ''), 'operator': ''})
+    for ds, (name, operator, lat, lon) in IOOS_STATIONS.items():
+        rows.append({'station': ds, 'name': name, 'type': 'ioos', 'cdip': '', 'lat': lat, 'lon': lon,
+                     'long_name': '', 'operator': operator})
     return pd.DataFrame(rows)
 
 
@@ -115,17 +138,39 @@ def years_with_data(daily):
     return sorted(counts[counts >= MIN_DAYS_PER_YEAR].index)
 
 
-def choose_period(sid):
-    """Daily means over the climatology period chosen for this buoy, and the period."""
-    daily = daily_history(sid, range(BASE_YEARS[0], BASE_YEARS[1] + 1))
-    years = years_with_data(daily)
+def ioos_history(dataset):
+    """A mooring's daily-mean surface temperature and sensor depth, cached in data/historical/."""
+    path = os.path.join(HIST, f'ioos_{dataset}.csv')
+    if not os.path.exists(path):
+        daily, z = ioos.daily_history(dataset)
+        daily.rename_axis('time_utc').to_frame().assign(z=z).to_csv(path)
+    df = pd.read_csv(path, index_col=0)
+    daily = pd.Series(df['wtmp_c'].values, index=pd.to_datetime(df.index, utc=True))
+    return daily, (float(df['z'].iloc[0]) if len(df) else None)
+
+
+def pick_period(daily_base, get_all):
+    """Daily means over the climatology period, and the period: BASE_YEARS when they
+    hold MIN_BASE_YEARS years of data, else every year through LAST_YEAR if at
+    least MIN_YEARS, else (None, None)."""
+    years = years_with_data(daily_base)
     if len(years) >= MIN_BASE_YEARS:
-        return daily, (years[0], years[-1])  # the years actually covered, e.g. 2004-2020 for older CDIP buoys
-    daily = daily_history(sid, range(BASE_YEARS[0], LAST_YEAR + 1))
+        return daily_base, (years[0], years[-1])  # the years actually covered, e.g. 2004-2020 for older CDIP buoys
+    daily = get_all()
+    daily = daily[daily.index.year <= LAST_YEAR]
     years = years_with_data(daily)
     if len(years) >= MIN_YEARS:
         return daily[daily.index.year.isin(years)], (years[0], years[-1])
     return None, None
+
+
+def choose_period(sid, kind):
+    if kind == 'ioos':
+        daily, _ = ioos_history(sid)
+        return pick_period(daily[(daily.index.year >= BASE_YEARS[0]) & (daily.index.year <= BASE_YEARS[1])],
+                           lambda: daily)
+    return pick_period(daily_history(sid, range(BASE_YEARS[0], BASE_YEARS[1] + 1)),
+                       lambda: daily_history(sid, range(BASE_YEARS[0], LAST_YEAR + 1)))
 
 
 def smooth(values):
@@ -156,14 +201,17 @@ if __name__ == '__main__':
     os.makedirs(HIST, exist_ok=True)
     stations = station_table()
     rows, periods = [], {}
-    for sid in stations['station']:
-        daily, period = choose_period(sid)
+    for sid, kind in zip(stations['station'], stations['type']):
+        daily, period = choose_period(sid, kind)
         periods[sid] = period
         if daily is not None:
             rows += climatology(sid, daily)
         print(f'{sid}: {f"{period[0]}-{period[1]}" if period else "no climatology (record too short)"}')
     stations['clim_start'] = [periods[s][0] if periods[s] else None for s in stations['station']]
     stations['clim_end'] = [periods[s][1] if periods[s] else None for s in stations['station']]
+    # sensor depth for moorings (m below the surface); the buoys measure at ~0.5-1 m
+    stations['depth_m'] = [abs(ioos_history(s)[1]) if k == 'ioos' and ioos_history(s)[1] is not None else None
+                           for s, k in zip(stations['station'], stations['type'])]
     stations.to_csv(os.path.join(DATA, 'stations.csv'), index=False)
     clim = pd.DataFrame(rows)
     clim.round(3).to_csv(os.path.join(DATA, 'climatology.csv'), index=False)

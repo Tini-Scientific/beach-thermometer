@@ -1,7 +1,8 @@
 """Hourly update for beachthermometer.com (run by .github/workflows/update.yml).
 
 1. Fetch each buoy's NDBC realtime2 file (the past 45 days, updated about
-   hourly) and merge its water temperatures, as hourly means, into the archive:
+   hourly), or each mooring's surface sensor from the IOOS ERDDAP server
+   (ioos.py), and merge its water temperatures, as hourly means, into the archive:
    data/archive/{station}/{YYYY-MM}.csv. Only the current month's files change
    from hour to hour, so the committed history stays small.
 2. Write the site data (not committed; published straight to GitHub Pages):
@@ -25,6 +26,7 @@ import sys
 
 import pandas as pd
 
+import ioos
 from ndbc import NDBC_URL, http, read_stdmet
 
 RECENT_DAYS = 45
@@ -85,24 +87,30 @@ def main():
     now = pd.Timestamp.now(tz='UTC')
     since = now - pd.Timedelta(days=RECENT_DAYS)
     stations = pd.read_csv(os.path.join(DATA, 'stations.csv'), dtype={'station': str, 'cdip': str}).set_index('station')
-    stations[['name', 'ndbc_name', 'cdip']] = stations[['name', 'ndbc_name', 'cdip']].fillna('')  # blanks, not NaN
+    text_cols = ['name', 'long_name', 'cdip', 'operator']
+    stations[text_cols] = stations[text_cols].fillna('')  # blanks, not NaN
     clim = pd.read_csv(os.path.join(DATA, 'climatology.csv'), dtype={'station': str})
     os.makedirs(os.path.join(SITE_DATA, 'stations'), exist_ok=True)
 
     entries = []
     for sid, info in stations.iterrows():
-        r = http.get(f'{NDBC_URL}/data/realtime2/{sid}.txt', timeout=60)
-        raw = read_stdmet(r.text) if r.status_code == 200 else read_stdmet('')
+        if info['type'] == 'ioos':
+            raw = ioos.recent(sid, RECENT_DAYS)
+        else:
+            r = http.get(f'{NDBC_URL}/data/realtime2/{sid}.txt', timeout=60)
+            raw = read_stdmet(r.text) if r.status_code == 200 else read_stdmet('')
         if len(raw):
             merge_into_archive(sid, raw.resample('h').mean().dropna())
         hourly = read_archive(sid, since)
         cs = clim[clim['station'] == sid].set_index('doy').reindex(range(1, 367))
         has_clim = pd.notna(info['clim_start'])
-        entry = {'id': sid, 'name': info['name'], 'type': info['type'], 'ndbc_name': info['ndbc_name'],
+        entry = {'id': sid, 'name': info['name'], 'type': info['type'], 'long_name': info['long_name'],
                  'lat': round(float(info['lat']), 4), 'lon': round(float(info['lon']), 4),
                  'clim_years': [int(info['clim_start']), int(info['clim_end'])] if has_clim else None}
         if info['type'] == 'cdip':
             entry['cdip'] = info['cdip']
+        if info['type'] == 'ioos':
+            entry.update({'operator': info['operator'], 'depth_m': float(info['depth_m'])})
         recent_raw = raw[raw.index >= since]
         if len(recent_raw) and not has_clim:
             entry.update({'last_time_ms': int(recent_raw.index[-1].timestamp() * 1000),

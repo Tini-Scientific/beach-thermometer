@@ -61,26 +61,15 @@ html, body { margin: 0; height: 100%; background: #1a1a1a; }
 .bt-row-anom.hw { color: #FF5A6A; font-weight: 700; }
 .bt-cols { display: flex; gap: 8px; padding: 6px 14px 2px; font-size: 10px; color: var(--silver); letter-spacing: 0.03em; }
 
-/* buoy markers (map and list): NDBC offshore buoys are white diamonds, CDIP wave
-   buoys light-blue circles (as in BoB_261028's CA_WaterTemp maps); gray when no
-   data; a thick red outline with a pulsing ring for a suspected marine heatwave */
+/* station markers (map and list, inline SVG drawn by markerHtml): NDBC offshore
+   buoys are white diamonds, CDIP wave buoys light-blue circles and IOOS moorings
+   orange pentagons (as in BoB_261028's CA_WaterTemp maps); gray when no data; a
+   thick red outline with a pulsing ring for a suspected marine heatwave */
 .bt-mk-wrap { display: flex; align-items: center; justify-content: center; }
-.bt-mk { position: relative; box-sizing: border-box; width: 15px; height: 15px; border: 1.5px solid #2b2b2b; flex: none; }
-.bt-mk.ndbc { width: 13px; height: 13px; transform: rotate(45deg); border-radius: 2px; }
-.bt-mk.cdip { border-radius: 50%; }
-.bt-mk.hw { border: 3px solid var(--heatwave-red); width: 20px; height: 20px; }  /* larger so the type color still shows */
-.bt-mk.ndbc.hw { width: 17px; height: 17px; }
-.bt-mk.hw::after {
-    content: ''; position: absolute; inset: -3px; border: 2px solid var(--heatwave-red); border-radius: inherit;
-    animation: bt-pulse 1.8s ease-out infinite;
-}
-@keyframes bt-pulse { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(2.6); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .bt-mk.hw::after { animation: none; display: none; } }
-.bt-list .bt-mk, .bt-list .bt-mk.hw { width: 12px; height: 12px; }
-.bt-list .bt-mk { border-color: rgba(255,255,255,0.6); }
-.bt-list .bt-mk.ndbc, .bt-list .bt-mk.ndbc.hw { width: 10px; height: 10px; margin: 0 1px; }
-.bt-list .bt-mk.hw { border: 2.5px solid #FF5A6A; }
-.bt-list .bt-mk.hw::after { display: none; }
+.bt-mk { display: block; flex: none; overflow: visible; }
+.bt-mk .pulse { transform-box: fill-box; transform-origin: center; animation: bt-pulse 1.8s ease-out infinite; }
+@keyframes bt-pulse { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .bt-mk .pulse { display: none; } }
 
 /* type filter buttons in the list header (also the legend) */
 .bt-filter { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 6px; border-bottom: 1px solid rgba(198,55,160,0.5); }
@@ -146,13 +135,13 @@ body.imperial .bt-imperial { display: inline; }
 }
 </style>
 </head>
-<body class="bt-font">
+<body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
 <div id="map"></div>
 <div class="bt-stats bt-font">
   <img src="assets/logo.png" class="bt-logo" alt="Tini Scientific">
   <div class="bt-header">Real-time Water Temperature</div>
   <table class="bt-table">
-    <tr><td class="bt-label">Buoys reporting</td><td class="bt-value" id="bt-n-reporting">–</td></tr>
+    <tr><td class="bt-label">Stations reporting</td><td class="bt-value" id="bt-n-reporting">–</td></tr>
     <tr><td class="bt-label">Suspected marine heatwaves</td><td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>
     <tr><td class="bt-label">Updated</td><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>
   </table>
@@ -212,13 +201,15 @@ const STATUS = {
     noclim: () => ['no climatology yet (record shorter than 8 years)', COLORS.text],
 };
 
-// popup subtitle and "Data: CDIP 215 / NDBC 46256" links by buoy type
-const buoyLabel = s => (s.type === 'cdip' ? `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}` : `Offshore buoy · NDBC ${s.id}`)
-                     + (s.ndbc_name ? ` · ${s.ndbc_name}` : '');
+// popup subtitle and "Data: CDIP 215 / NDBC 46256" links by station type
+const buoyLabel = s => ({cdip: `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}`, ndbc: `Offshore buoy · NDBC ${s.id}`,
+                         ioos: `Mooring · ${s.operator} · surface sensor at ${s.depth_m} m`})[s.type]
+                     + (s.long_name ? ` · ${s.long_name}` : '');
 const link = (href, text) => `<a class="bt-source" style="display:inline;" href="${href}" target="_blank">${text}</a>`;
 const dataLinks = s => `<span class="bt-data">Data: `
-    + (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / ' : '')
-    + link(`${NDBC}/station_page.php?station=${s.id}`, `NDBC ${s.id}`) + `</span>`;
+    + (s.type === 'ioos' ? link(`https://erddap.sensors.ioos.us/erddap/tabledap/${s.id}.html`, 'IOOS sensor catalog')
+       : (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / ' : '')
+         + link(`${NDBC}/station_page.php?station=${s.id}`, `NDBC ${s.id}`)) + `</span>`;
 
 function popupHtml(s) {
     const head = `<div class="bt-name">${s.name}</div>`
@@ -293,7 +284,7 @@ function drawChart(id) {
             {label: 'Climatology', data: mean, borderColor: '#737373', borderDash: [5, 4], borderWidth: 1.2,
              pointRadius: 0, fill: false, hidden: !st.clim, order: 1, pointStyle: 'line'},
             Object.assign({label: 'Normal to 10th pct.', data: p10, backgroundColor: BAND_COLD, fill: '-1'}, band),
-            {label: 'Buoy', data: temp, borderColor: COLORS.fandango, borderWidth: 1.6, pointRadius: 0,
+            {label: 'Observed', data: temp, borderColor: COLORS.fandango, borderWidth: 1.6, pointRadius: 0,
              spanGaps: 3 * 3.6e6, fill: false, order: 0, pointStyle: 'line'},
         ]},
         options: {
@@ -361,7 +352,7 @@ const UnitCtrl = L.Control.extend({
     onAdd: () => {
         const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
         div.style.marginTop = '6px';
-        div.innerHTML = '<button class="bt-unit-btn bt-font" onclick="btToggleUnits()">Metric [°C]</button>';
+        div.innerHTML = '<button class="bt-unit-btn bt-font" onclick="btToggleUnits()">Imperial [°F]</button>';
         L.DomEvent.disableClickPropagation(div);
         return div;
     },
@@ -376,12 +367,33 @@ document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
 // from today's climatology (past 24 h), sorted north to south or A–Z; the
 // type buttons at the top are the legend and filter the list and the map.
 // Clicking a row opens that buoy's popup. Starts collapsed on phones.
-const TYPES = {ndbc: ['Offshore buoys (NDBC)', '#FFFFFF'], cdip: ['Wave buoys (CDIP)', '#4FC3F7']};
+const TYPES = {ndbc: ['Offshore buoys (NDBC)', '#FFFFFF'], cdip: ['Wave buoys (CDIP)', '#4FC3F7'],
+               ioos: ['Moorings (IOOS)', '#FF8A3D']};
 const markers = {};
 let stationList = [];
 const hiddenTypes = new Set();
-const markerHtml = s => `<div class="bt-mk ${s.type}${s.status === 'heatwave' ? ' hw' : ''}" `
-                      + `style="background:${s.last_c == null ? COLORS.noData : TYPES[s.type][1]};"></div>`;
+// marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC) or pentagon (IOOS), radius r
+function shape(type, r, attrs) {
+    if (type === 'cdip') return `<circle cx="12" cy="12" r="${r}" ${attrs}/>`;
+    const n = type === 'ndbc' ? 4 : 5;
+    const pts = Array.from({length: n}, (_, k) => {
+        const a = -Math.PI / 2 + 2 * Math.PI * k / n;
+        return `${(12 + r * Math.cos(a)).toFixed(2)},${(12 + r * Math.sin(a)).toFixed(2)}`;
+    }).join(' ');
+    return `<polygon points="${pts}" ${attrs}/>`;
+}
+// SVG marker for the map (size 26 px, pulsing ring on heatwaves) or the list (14 px)
+function markerHtml(s, inList = false) {
+    const hw = s.status === 'heatwave';
+    const r = ({cdip: 6.5, ndbc: 8, ioos: 7.5})[s.type] + (hw && !inList ? 1.5 : 0);
+    const fill = s.last_c == null ? COLORS.noData : TYPES[s.type][1];
+    const stroke = hw ? (inList ? '#FF5A6A' : COLORS.heatwave) : (inList ? 'rgba(255,255,255,0.6)' : '#2b2b2b');
+    const width = hw ? (inList ? 2.5 : 3) : 1.5;
+    const pulse = hw && !inList ? shape(s.type, r, `class="pulse" fill="none" stroke="${COLORS.heatwave}" stroke-width="2"`) : '';
+    const size = inList ? 14 : 26;
+    return `<svg class="bt-mk" width="${size}" height="${size}" viewBox="0 0 24 24">${pulse}`
+         + shape(s.type, r, `fill="${fill}" stroke="${stroke}" stroke-width="${width}" stroke-linejoin="round"`) + `</svg>`;
+}
 const ListCtrl = L.Control.extend({
     options: {position: 'topleft'},
     onAdd: () => {
@@ -389,21 +401,21 @@ const ListCtrl = L.Control.extend({
         const order = {ns: (a, b) => b.lat - a.lat, az: (a, b) => a.name.localeCompare(b.name)};
         let sortKey = 'ns';
         const filters = Object.entries(TYPES).map(([t, [label]]) =>
-            `<button data-type="${t}">${markerHtml({type: t, last_c: 0})}${label}`
+            `<button data-type="${t}">${markerHtml({type: t, last_c: 0}, true)}${label}`
             + `<span class="n">${stationList.filter(s => s.type === t).length}</span></button>`).join('');
         div.innerHTML = `<div class="bt-list-head"><span class="bt-list-title">STATIONS</span>`
                       + `<span class="bt-sort"><button data-sort="ns" class="on" title="North to south">N→S</button>`
                       + `<button data-sort="az" title="Alphabetical">A–Z</button></span>`
                       + `<span class="bt-caret">▾</span></div>`
                       + `<div class="bt-filter">${filters}<div class="bt-hw-note">`
-                      + `${markerHtml({type: 'cdip', last_c: 0, status: 'heatwave'})}Suspected marine heatwave</div></div>`
+                      + `${markerHtml({type: 'cdip', last_c: 0, status: 'heatwave'}, true)}Suspected marine heatwave</div></div>`
                       + `<div class="bt-cols"><span style="flex:1;">Station</span><span>Temp</span>`
                       + `<span style="width:62px;text-align:right;">vs. normal</span></div>`
                       + `<div class="bt-list-rows"></div>`;
         const fill = () => {
             div.querySelector('.bt-list-rows').innerHTML = stationList.filter(s => !hiddenTypes.has(s.type))
                 .sort(order[sortKey]).map(s =>
-                `<div class="bt-row" data-id="${s.id}">${markerHtml(s)}<span class="bt-row-name">${s.name}</span>`
+                `<div class="bt-row" data-id="${s.id}">${markerHtml(s, true)}<span class="bt-row-name">${s.name}</span>`
                 + (s.last_c != null ? `<span class="bt-row-temp">${bothUnits(s.last_c)}</span>`
                                     : `<span class="bt-row-temp none">no data</span>`)
                 + `<span class="bt-row-anom${s.status === 'heatwave' ? ' hw' : ''}">`
@@ -445,7 +457,7 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
     document.getElementById('bt-updated').textContent = pacific(data.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
     data.stations.forEach(s => {
         const has = s.last_c != null;
-        const m = L.marker([s.lat, s.lon], {icon: L.divIcon({className: 'bt-mk-wrap', iconSize: [26, 26],
+        const m = L.marker([s.lat, s.lon], {icon: L.divIcon({className: 'bt-mk-wrap', iconSize: [28, 28],
                   html: markerHtml(s), popupAnchor: [0, -8], tooltipAnchor: [10, 0]})}).addTo(map);
         m.bindTooltip(has ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
                           : `${s.name}: no recent water temperature`, {className: 'bt-font'});
