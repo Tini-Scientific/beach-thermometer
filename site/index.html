@@ -139,24 +139,35 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 body.imperial .bt-metric { display: none; }
 body.imperial .bt-imperial { display: inline; }
 
-/* popup */
-.bt-popup { width: 460px; }
-.bt-name { color: var(--federal-blue); font-size: 17px; font-weight: 700; }
-.bt-sub { color: #888; font-size: 12px; }
-.bt-temp { color: var(--fandango); font-size: 22px; font-weight: 700; }
-.bt-note { color: #888; font-size: 12px; }
-.bt-when { color: #555; font-size: 12px; }
-.bt-anom { color: var(--federal-blue); font-size: 13px; font-weight: 600; }
-.bt-status { font-size: 13px; font-weight: 700; }
-.bt-seg { display: flex; margin: 10px 0 6px 0; }
-.bt-window {
-    flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; padding: 4px 0; cursor: pointer;
-    border: 1px solid var(--fandango); border-left-width: 0; background: white; color: var(--fandango);
+/* popup (desktop bubble and phone card share this content) */
+.bt-popup { width: 460px; font-family: 'Montserrat', 'Helvetica Neue', sans-serif; color: var(--ink); }
+.bt-name { font-size: 18px; font-weight: 700; line-height: 1.25; }
+.bt-sub { color: #6B7280; font-size: 12px; margin-top: 3px; line-height: 1.45; }
+.bt-sec { border-top: 1px solid #ECEEF2; margin-top: 12px; padding-top: 12px; }
+.bt-now { display: flex; align-items: center; gap: 12px; }
+.bt-swatch { flex: none; }
+.bt-temp { font-size: 34px; font-weight: 700; line-height: 1.05; letter-spacing: -0.01em; }
+.bt-when { color: #6B7280; font-size: 12px; margin-top: 3px; }
+.bt-note { color: #6B7280; font-size: 12px; }
+.bt-pill {
+    display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 11px;
+    background: #EEF0F4; color: #4B5563;
 }
-.bt-window:first-child { border-left-width: 1px; border-radius: 12px 0 0 12px; }
-.bt-window:last-child { border-radius: 0 12px 12px 0; }
+.bt-pill.hw { background: var(--heatwave-red); color: white; }
+.bt-pill.cold { background: #1D4ED8; color: white; }
+.bt-anom { font-size: 13px; color: #374151; margin-top: 7px; }
+.bt-anom b { font-weight: 700; color: var(--ink); }
+.bt-seg { display: flex; gap: 4px; margin-bottom: 8px; background: #F3F4F6; border-radius: 999px; padding: 3px; }
+.bt-window {
+    flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 0; cursor: pointer;
+    border: none; border-radius: 999px; background: transparent; color: #4B5563;
+}
+.bt-window:hover { color: var(--fandango); }
 .bt-window.on { background: var(--fandango); color: white; }
 .bt-chart { position: relative; width: 460px; height: 260px; }
+.bt-foot { margin-top: 12px; padding-top: 10px; border-top: 1px solid #ECEEF2; font-size: 11px; color: #6B7280; line-height: 1.6; }
+.bt-foot a { color: #6B7280; }
+.bt-download { color: var(--fandango) !important; font-weight: 700; }
 /* phones: a station opens as a card over the screen instead of a map popup */
 .bt-sheet { position: fixed; inset: 0; z-index: 2000; background: rgba(18,24,38,0.45); }  /* dims the map; tap to close */
 .bt-sheet-card {
@@ -170,18 +181,12 @@ body.imperial .bt-imperial { display: inline; }
     font-family: inherit; font-size: 14px; font-weight: 600; color: white; background: var(--ink);
     border: none; border-radius: 18px; padding: 7px 14px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
-.bt-sheet .bt-popup { width: auto; padding: 0 16px 20px; margin-top: -8px; }
+.bt-sheet .bt-popup { width: auto; padding: 0 18px 18px; margin-top: -8px; }
 .bt-sheet .bt-chart { width: 100%; }
-.bt-chart-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
-.bt-toggle {
-    font-family: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer;
-    border: 1px solid var(--federal-blue); background: white; color: var(--federal-blue); margin-bottom: 1px;
-}
-.bt-toggle.on { background: var(--federal-blue); color: white; }
-.bt-source { display: block; font-size: 11px; color: #888; text-decoration: underline; }
-.bt-data { font-size: 11px; color: #888; }
-.bt-download { color: var(--federal-blue); font-weight: 600; font-size: 13px; text-decoration: underline; }
-.leaflet-popup-content { margin: 14px 16px; }
+.bt-chart-msg { position: absolute; inset: 0; pointer-events: none;  /* let clicks and hovers reach the chart */ display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
+.bt-source { color: #6B7280; text-decoration: underline; }
+.leaflet-popup-content { margin: 16px 18px; }
+.leaflet-popup-content-wrapper { border-radius: 12px; }
 
 @media (max-width: 540px) {
     .bt-chart { height: 200px; }
@@ -266,11 +271,11 @@ function bothUnits(c, signed = false) {
     const s = v => (signed && v >= 0 ? '+' : '') + v.toFixed(1);
     return `<span class="bt-metric">${s(c)} °C</span><span class="bt-imperial">${s(f)} °F</span>`;
 }
-// age flag after the last temperature, recomputed against the viewer's clock
-function ageFlag(ms) {
-    const h = (Date.now() - ms) / 3.6e6;
-    return h < 1 ? '&lt; 1 hour' : h < 24 ? '&lt; 1 day' : h < 24 * 7 ? '&gt; 1 day'
-         : h < 24 * 30 ? '&gt; 1 week' : '&gt; 1 month';
+// how long ago the last temperature was, against the viewer's clock
+function relAge(ms) {
+    const m = Math.round((Date.now() - ms) / 6e4), h = Math.round(m / 60), d = Math.round(m / 1440);
+    const n = (k, w) => `${k} ${w}${k === 1 ? '' : 's'} ago`;
+    return m < 2 ? 'just now' : m < 60 ? n(m, 'minute') : h < 48 ? n(h, 'hour') : n(d, 'day');
 }
 function pacific(ms, opts) {
     return new Date(ms).toLocaleString('en-US', Object.assign({timeZone: TZ}, opts));
@@ -285,13 +290,14 @@ function dayOfYear(ms) {
 // a streak that runs the whole record (latest.recent_days) may have started earlier: '45+'
 const streakDays = (s, n) => (s.streak_is_whole_record ? `${latest.recent_days}+` : n);
 
+// popup status pill: [text, class]
 const STATUS = {
-    heatwave: s => [`suspected marine heatwave (${streakDays(s, s.hot_days)} days above 90th pct.)`, COLORS.heatwave],
-    coldspell: s => [`suspected marine cold spell (${streakDays(s, s.cold_days)} days below 10th pct.)`, COLORS.text],
-    warmer: () => ['warmer than usual', COLORS.text],
-    cooler: () => ['cooler than usual', COLORS.text],
-    normal: () => ['near normal', COLORS.text],
-    noclim: () => ['no climatology yet (record shorter than 8 years)', COLORS.text],
+    heatwave: s => [`Suspected marine heatwave · ${streakDays(s, s.hot_days)} days`, 'hw'],
+    coldspell: s => [`Suspected marine cold spell · ${streakDays(s, s.cold_days)} days`, 'cold'],
+    warmer: () => ['Warmer than usual', ''],
+    cooler: () => ['Cooler than usual', ''],
+    normal: () => ['Near normal', ''],
+    noclim: () => ['No normal yet · record shorter than 8 years', ''],
 };
 
 // popup subtitle and "Data: CDIP 215 / NDBC 46256" links by station type
@@ -299,9 +305,13 @@ const buoyLabel = s => ({cdip: `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}`, ndb
                          ioos: `Mooring · ${s.operator} · surface sensor at ${s.depth_m} m`,
                          tide: `Tide station · NOAA CO-OPS ${s.coops} / NDBC ${s.id}`,
                          shore: `Shore station · ${s.operator}`})[s.type]
-                     + (s.long_name ? ` · ${s.long_name}` : '');
+                     + (place(s) ? ` · ${place(s)}` : '');
+// readable location from NDBC's description: 'ST GEORGES - 8 NM NW of Crescent City, CA' -> '8 nm NW of
+// Crescent City, CA', '9419750 - Crescent City, CA' -> 'Crescent City, CA', 'Point Sur, CA (157)' -> 'Point Sur, CA'
+const place = s => (s.long_name || '').replace(/\s*\(\d+\)$/, '').replace(/^[A-Z0-9 .'-]+?(?: - |\s{2,})/, '')
+                                      .replace(/(\d+)\s*NM\b/, '$1 nm').trim();
 const link = (href, text) => `<a class="bt-source" style="display:inline;" href="${href}" target="_blank">${text}</a>`;
-const dataLinks = s => `<span class="bt-data">Data: `
+const dataLinks = s => `<span>Data: `
     + (s.type === 'ioos' || s.type === 'shore' ? link(`https://erddap.sensors.ioos.us/erddap/tabledap/${s.id}.html`, 'IOOS sensor catalog')
        : (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / '
           : s.type === 'tide' ? link(`https://tidesandcurrents.noaa.gov/stationhome.html?id=${s.coops}`, `CO-OPS ${s.coops}`) + ' / '
@@ -309,33 +319,35 @@ const dataLinks = s => `<span class="bt-data">Data: `
          + link(`${NDBC}/station_page.php?station=${s.id}`, `NDBC ${s.id}`)) + `</span>`;
 
 function popupHtml(s) {
-    const head = `<div class="bt-name">${s.name}</div>`
-               + `<div class="bt-sub">${buoyLabel(s)}</div><br>`;
+    const head = `<div class="bt-name">${s.name}</div><div class="bt-sub">${buoyLabel(s)}</div>`;
     if (s.last_c == null) {
-        return `<div class="bt-popup">${head}<span class="bt-note">No water temperature reported in the past `
-             + `${latest.recent_days} days.</span><br><br>${dataLinks(s)}</div>`;
+        return `<div class="bt-popup">${head}<div class="bt-sec bt-note">No water temperature reported in the past `
+             + `${latest.recent_days} days.</div><div class="bt-foot">${dataLinks(s)}</div></div>`;
     }
-    const [statusText, statusColor] = STATUS[s.status](s);
-    const when = pacific(s.last_time_ms, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric',
-                                          minute: '2-digit', timeZoneName: 'short'});
+    const [pill, pillClass] = STATUS[s.status](s);
+    const when = pacific(s.last_time_ms, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
+    // the station's map symbol in its temperature color, beside the number (colored text would vanish when pale yellow)
+    const r = ({cdip: 9, ndbc: 11, ioos: 10.5, tide: 11, shore: 11.5})[s.type];
+    const hw = s.status === 'heatwave';
+    const swatch = `<svg class="bt-swatch" width="36" height="36" viewBox="0 0 24 24">`
+        + shape(s.type, r, `fill="${tempColor(s.last_c)}" stroke="${hw ? COLORS.heatwave : 'rgba(18,24,38,0.25)'}" `
+                         + `stroke-width="${hw ? 2 : 1}" stroke-linejoin="round"`) + `</svg>`;
     const seg = Object.entries(WINDOWS).map(([k, [label]]) =>
         `<button class="bt-window${k === DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" `
         + `onclick="btWindow('${s.id}', '${k}', this)">${label}</button>`).join('');
+    const hasAnom = s.clim_years && s.anom_c != null;
     return `<div class="bt-popup">${head}`
-        + `<span style="font-size:13px;">&#127777;</span> <span class="bt-temp">${bothUnits(s.last_c)}</span>`
-        + `<span class="bt-note"> last recorded water temp (<span class="bt-age" data-t="${s.last_time_ms}">`
-        + `${ageFlag(s.last_time_ms)}</span>)</span><br>`
-        + `<span class="bt-when">${when}</span><br><br>`
-        + (s.clim_years ? `<span class="bt-anom">${bothUnits(s.anom_c, true)} from climatology (past 24 h)</span><br>` : '')
-        + `<span class="bt-status" style="color:${statusColor};">&ndash; ${statusText}</span>`
-        + `<div class="bt-seg">${seg}</div>`
+        + `<div class="bt-sec bt-now">${swatch}<div><div class="bt-temp">${bothUnits(s.last_c)}</div>`
+        + `<div class="bt-when"><span class="bt-age" data-t="${s.last_time_ms}">${relAge(s.last_time_ms)}</span> · ${when}</div></div></div>`
+        + `<div class="bt-sec"><span class="bt-pill ${pillClass}">${pill}</span>`
+        + (hasAnom ? `<div class="bt-anom"><b>${bothUnits(s.anom_c, true)}</b> vs. normal for this date `
+                     + `<span class="bt-note">(past 24 h)</span></div>` : '') + `</div>`
+        + `<div class="bt-sec"><div class="bt-seg">${seg}</div>`
         + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}"></canvas>`
-        + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
-        + (s.clim_years ? `<button class="bt-toggle on" style="margin-top:6px;" onclick="btClim('${s.id}', this)" `
-           + `title="Daily mean, 10th and 90th percentile from this buoy's ${s.clim_years[0]}–${s.clim_years[1]} record `
-           + `(NDBC archive)">Climatology</button>` : '') + '<br><br>'
-        + `<a class="bt-download" href="data/stations/${s.id}.csv" download="NDBC_${s.id}_water_temp.csv">Download data here</a>`
-        + ` <span class="bt-note">·</span> ${dataLinks(s)}`
+        + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div></div>`
+        + `<div class="bt-foot"><a class="bt-download" href="data/stations/${s.id}.csv" download="NDBC_${s.id}_water_temp.csv">`
+        + `Download data (CSV)</a> · ${dataLinks(s)}`
+        + (s.clim_years ? `<br>Normal: this station's ${s.clim_years[0]}–${s.clim_years[1]} record` : '') + `</div>`
         + `</div>`;
 }
 
@@ -377,10 +389,10 @@ function drawChart(id) {
     charts[id] = new Chart(canvas, {
         type: 'line',
         data: {datasets: [
-            Object.assign({label: 'Normal to 90th pct.', data: p90, backgroundColor: BAND_HOT, fill: '+1'}, band),
-            {label: 'Climatology', data: mean, borderColor: '#737373', borderDash: [5, 4], borderWidth: 1.2,
+            Object.assign({label: 'Normal range', tip: '90th percentile', data: p90, backgroundColor: BAND_HOT, fill: '+1'}, band),
+            {label: 'Normal', data: mean, borderColor: '#737373', borderDash: [5, 4], borderWidth: 1.2,
              pointRadius: 0, fill: false, hidden: !st.clim, order: 1, pointStyle: 'line'},
-            Object.assign({label: 'Normal to 10th pct.', data: p10, backgroundColor: BAND_COLD, fill: '-1'}, band),
+            Object.assign({label: '10th pct.', tip: '10th percentile', data: p10, backgroundColor: BAND_COLD, fill: '-1'}, band),
             {label: 'Observed', data: temp, borderColor: COLORS.fandango, borderWidth: 1.6, pointRadius: 0,
              spanGaps: 3 * 3.6e6, fill: false, order: 0, pointStyle: 'line'},
         ]},
@@ -395,11 +407,17 @@ function drawChart(id) {
                     grid: {color: '#eee'}, ticks: {color: '#555', font: {size: 11}}},
             },
             plugins: {
-                legend: {display: st.clim, position: 'bottom',
-                         labels: {usePointStyle: true, boxWidth: 14, font: {size: 11}, color: '#444'}},
+                // tapping Normal or Normal range in the legend shows or hides the climatology
+                legend: {display: Boolean(d.clim_mean.some(v => v != null)), position: 'bottom',
+                         onClick: (e, item) => { if (item.text !== 'Observed') { st.clim = !st.clim; drawChart(id); } },
+                         onHover: e => { e.native.target.style.cursor = 'pointer'; },
+                         onLeave: e => { e.native.target.style.cursor = 'default'; },
+                         labels: {usePointStyle: true, boxWidth: 14, font: {size: 11}, color: '#444',
+                                  filter: item => item.text !== '10th pct.',
+                                  sort: (a, b) => (a.text === 'Observed' ? -1 : b.text === 'Observed' ? 1 : 0)}},
                 tooltip: {callbacks: {
                     title: items => pacific(items[0].parsed.x, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}),
-                    label: item => `${item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit()}`}},
+                    label: item => `${item.dataset.tip || item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit()}`}},
             },
         },
     });
@@ -422,11 +440,6 @@ async function openChart(id) {
 function btWindow(id, win, btn) {
     chartState[id].win = win;
     btn.parentElement.querySelectorAll('.bt-window').forEach(b => b.classList.toggle('on', b === btn));
-    drawChart(id);
-}
-function btClim(id, btn) {
-    chartState[id].clim = !chartState[id].clim;
-    btn.classList.toggle('on', chartState[id].clim);
     drawChart(id);
 }
 function btSetUnits(u) {
@@ -649,7 +662,7 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
             m.bindPopup(() => popupHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
                                              autoPanPaddingBottomRight: [10, 10]});
             m.on('popupopen', e => {
-                e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.innerHTML = ageFlag(Number(el.dataset.t)); });
+                e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.textContent = relAge(Number(el.dataset.t)); });
                 if (has) openChart(s.id);
             });
         }
