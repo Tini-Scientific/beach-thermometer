@@ -79,3 +79,9 @@ Scripps Institution of Oceanography) wave buoys and NOAA CO-OPS tide stations it
 (erddap.sensors.ioos.us) for the MBARI, Scripps and UC Davis Bodega Marine Laboratory
 moorings and the CeNCOOS, SCCOOS, Bodega Marine Laboratory, Cal Poly, UC Santa Cruz, Moss
 Landing, Monterey Bay Aquarium, SFSU Tiburon and Exploratorium shore stations. Basemaps: Esri.
+
+## Privacy
+
+Visits are counted anonymously with [GoatCounter](https://www.goatcounter.com): no cookies and no
+personal data. Opening a station's card is also counted (as `station/<id>`), to see which stations people
+look at. Dashboard: https://beachthermometer.goatcounter.com
