@@ -27,6 +27,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main  # latest main, not the commit that triggered the run (an earlier run may have pushed since)
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -40,7 +42,8 @@ jobs:
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add data/archive
           git diff --cached --quiet || git commit -m "Archive update $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git push
+          git pull --rebase origin main  # in case main moved while this run was fetching data
+          git push origin HEAD:main
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
