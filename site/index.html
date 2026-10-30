@@ -456,7 +456,7 @@ const baseLayers = {
     'Ocean / Bathymetry': L.tileLayer(esri('Ocean/World_Ocean_Base'), {attribution: 'Esri World Ocean Base', maxZoom: 13}),
     'Satellite': L.tileLayer(esri('World_Imagery'), {attribution: 'Esri World Imagery', maxZoom: 19}),
 };
-const map = L.map('map', {layers: [baseLayers['Ocean / Bathymetry']], zoomControl: false}).setView([36.6, -121.5], 6);
+const map = L.map('map', {layers: [baseLayers['Roads']], zoomControl: false}).setView([36.6, -121.5], 6);
 // top right: color bar, then °F/°C toggle; bottom right: zoom buttons above the base-map choice
 // color bar for the marker fill, ticked in whichever unit is showing
 const ColorbarCtrl = L.Control.extend({
