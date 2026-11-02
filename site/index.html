@@ -299,6 +299,7 @@ body.imperial .bt-imperial { display: inline; }
   </div>
 </header>
 <div id="map"></div>
+<div id="bt-announce" class="bt-sr" aria-live="polite"></div>  <!-- read out by screen readers, e.g. a unit switch -->
 <script>
 document.querySelector('.bt-sources').onclick = e => {
     const open = e.currentTarget.closest('.bt-credits').classList.toggle('open');
@@ -408,7 +409,7 @@ function popupHtml(s) {
         + shape(s.type, r, `fill="${stale ? COLORS.noData : tempColor(s.last_c)}" stroke="${hw ? COLORS.heatwave : 'rgba(18,24,38,0.25)'}" `
                          + `stroke-width="${hw ? 2 : 1}" stroke-linejoin="round"`) + `</svg>`;
     const seg = Object.entries(WINDOWS).map(([k, [label]]) =>
-        `<button class="bt-window${k === DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" `
+        `<button class="bt-window${k === DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" aria-pressed="${k === DEFAULT_WINDOW}" `
         + `onclick="btWindow('${s.id}', '${k}', this)">${label}</button>`).join('');
     const hasAnom = s.clim_years && s.anom_c != null;
     return `<div class="bt-popup">${head}`
@@ -419,7 +420,7 @@ function popupHtml(s) {
         + `<div class="bt-sec"><span class="bt-pill ${pillClass}">${pill}</span>`
         + (hasAnom ? `<div class="bt-anom"><b>${bothUnits(s.anom_c, true)}</b> vs. normal for this date `
                      + `<span class="bt-note">(past 24 h)</span></div>` : '') + `</div>`
-        + `<div class="bt-sec"><div class="bt-seg">${seg}</div>`
+        + `<div class="bt-sec"><div class="bt-seg" role="group" aria-label="Chart time span">${seg}</div>`
         + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}" role="img" aria-label="Water temperature chart, described below"></canvas>`
         + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
         + `<p class="bt-chart-sum" id="bt-sum-${s.id}" aria-live="polite"></p></div>`
@@ -464,7 +465,9 @@ function drawChart(id) {
     const tickLabel = v => days === 1 ? pacific(v, {hour: 'numeric'})
                                       : pacific(v, {month: 'short', day: 'numeric'});
     document.getElementById(`bt-msg-${id}`).textContent = temp.length ? '' : `No data in the past ${WINDOWS[st.win][0].toLowerCase()}`;
-    document.getElementById(`bt-sum-${id}`).innerHTML = chartSummary(id, t0, days);
+    // rewritten only when it changes, so a unit switch (which redraws the chart) isn't read out again
+    const sum = document.getElementById(`bt-sum-${id}`), text = chartSummary(id, t0, days);
+    if (sum._text !== text) { sum.innerHTML = text; sum._text = text; }
     charts[id] = new Chart(canvas, {
         type: 'line',
         data: {datasets: [
@@ -562,13 +565,20 @@ async function openChart(id) {
 
 function btWindow(id, win, btn) {
     chartState[id].win = win;
-    btn.parentElement.querySelectorAll('.bt-window').forEach(b => b.classList.toggle('on', b === btn));
+    btn.parentElement.querySelectorAll('.bt-window').forEach(b => {
+        b.classList.toggle('on', b === btn);
+        b.setAttribute('aria-pressed', b === btn);
+    });
     drawChart(id);
 }
 function btSetUnits(u) {
     const isImp = u === 'f';
     document.body.classList.toggle('imperial', isImp);
-    document.querySelectorAll('.bt-units button').forEach(b => b.classList.toggle('on', b.dataset.unit === u));
+    document.querySelectorAll('.bt-units button').forEach(b => {
+        b.classList.toggle('on', b.dataset.unit === u);
+        b.setAttribute('aria-pressed', b.dataset.unit === u);
+    });
+    document.getElementById('bt-announce').textContent = `Showing temperatures in degrees ${isImp ? 'Fahrenheit' : 'Celsius'}`;
     Object.keys(charts).forEach(id => { if (document.getElementById(`bt-canvas-${id}`)) drawChart(id); });
 }
 
@@ -602,8 +612,10 @@ const UnitCtrl = L.Control.extend({
     options: {position: 'topright'},
     onAdd: () => {
         const div = L.DomUtil.create('div', 'bt-units leaflet-bar leaflet-control bt-font');
-        div.innerHTML = '<button data-unit="f" class="on" onclick="btSetUnits(\'f\')"><span class="bt-long">Imperial </span>°F</button>'
-                      + '<button data-unit="c" onclick="btSetUnits(\'c\')"><span class="bt-long">Metric </span>°C</button>';
+        div.setAttribute('role', 'group');
+        div.setAttribute('aria-label', 'Temperature units');
+        div.innerHTML = '<button data-unit="f" class="on" aria-pressed="true" onclick="btSetUnits(\'f\')"><span class="bt-long">Imperial </span>°F</button>'
+                      + '<button data-unit="c" aria-pressed="false" onclick="btSetUnits(\'c\')"><span class="bt-long">Metric </span>°C</button>';
         L.DomEvent.disableClickPropagation(div);
         return div;
     },
