@@ -18,7 +18,9 @@
    beyond ±NEAR_NORMAL_C, else near normal. Buoys whose record is too short
    for a climatology (see build_climatology.py) get status 'noclim', and
    buoys whose latest reading is more than STALE_DAYS old get 'stale'.
-3. Exit with an error (so GitHub emails the repository owner) if no buoy has
+3. Once a day, add an entry to the daily marine heatwave summary feed
+   (site/feed.xml; see feed.py).
+4. Exit with an error (so GitHub emails the repository owner) if no buoy has
    reported within STALE_HOURS.
 """
 import json
@@ -28,6 +30,7 @@ import sys
 import pandas as pd
 
 import ioos
+from feed import update_feed
 from ndbc import NDBC_URL, http, read_stdmet
 
 RECENT_DAYS = 45
@@ -162,6 +165,7 @@ def main():
     counts = {s: sum(e.get('status') == s for e in entries)
               for s in ['heatwave', 'warmer', 'normal', 'cooler', 'coldspell', 'noclim', 'stale']}
     print(f"{now:%Y-%m-%d %H:%M} UTC: {sum('status' in e for e in entries)}/{len(entries)} buoys reporting; {counts}")
+    update_feed(entries, now)
 
     newest_h = min(((now.timestamp() * 1000 - e['last_time_ms']) / 3.6e6 for e in entries if 'last_time_ms' in e),
                    default=float('inf'))

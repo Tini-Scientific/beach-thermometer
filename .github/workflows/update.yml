@@ -36,11 +36,11 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Fetch NDBC data and write site data
         run: python update.py
-      - name: Commit archive
+      - name: Commit archive and feed entries
         run: |
           git config user.name 'beachthermometer-bot'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data/archive
+          git add data/archive data/feed
           git diff --cached --quiet || git commit -m "Archive update $(date -u +'%Y-%m-%d %H:%M UTC')"
           git pull --rebase origin main  # in case main moved while this run was fetching data
           git push origin HEAD:main
