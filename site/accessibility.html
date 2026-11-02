@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accessibility · Beach Thermometer</title>
+<meta name="description" content="How Beach Thermometer works with screen readers, keyboards, zoom and color blindness, its known limitations, and how to report a problem.">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- anonymous visit counts (no cookies, no personal data): https://beachthermometer.goatcounter.com -->
+<script data-goatcounter="https://beachthermometer.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<style>
+/* same colors and header as the map page (index.html) */
+:root {
+    --fandango: #C637A0; --ink: #121826; --hairline: rgba(255,255,255,0.10); --muted: #A3ACBD;
+    --text: #1F2937; --soft: #4B5563; --paper: #F7F7F9;
+}
+html, body { margin: 0; background: var(--paper); }
+body { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; color: var(--text); }
+.bt-skip { position: absolute; left: 12px; top: -60px; background: white; color: var(--ink); font-weight: 700;
+           font-size: 14px; padding: 10px 14px; border-radius: 8px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.bt-skip:focus { top: 12px; outline: 3px solid var(--fandango); outline-offset: 2px; }
+header {
+    background: var(--ink); border-bottom: 1px solid var(--hairline); color: white;
+    background-image: linear-gradient(90deg, rgba(198,55,160,0.10), rgba(18,24,38,0) 45%);
+    padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.home { text-decoration: none; }
+.home span {
+    font-size: 30px; font-weight: 700; line-height: 1.15;
+    background: linear-gradient(90deg, #4FC3F7 0%, #A78BFA 40%, #F472B6 70%, #FF4D4D 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.back { color: white; font-size: 14px; font-weight: 600; }
+header a:focus-visible { outline: 2px solid white; outline-offset: 3px; border-radius: 3px; }
+main { max-width: 720px; margin: 0 auto; padding: 36px 24px 56px; line-height: 1.65; font-size: 16px; }
+h1 { font-size: 32px; line-height: 1.2; margin: 0 0 18px; color: var(--ink); }
+h2 { font-size: 21px; margin: 38px 0 10px; color: var(--ink); }
+p, li { margin: 0 0 12px; }
+ul { padding-left: 22px; margin: 0 0 12px; }
+ul ul { margin-top: 8px; }
+a { color: #A92A87; }  /* Tini magenta, darkened a little for contrast on the light page */
+a:focus-visible { outline: 2px solid var(--fandango); outline-offset: 2px; border-radius: 2px; }
+.email { font-weight: 700; }
+.updated { color: var(--soft); font-size: 14px; margin-top: 40px; border-top: 1px solid #E5E7EB; padding-top: 14px; }
+@media (max-width: 540px) {
+    header { padding: 12px 20px; }
+    .home span { font-size: 22px; }
+    main { padding: 26px 18px 44px; font-size: 15px; }
+    h1 { font-size: 26px; }
+    h2 { font-size: 19px; }
+}
+</style>
+</head>
+<body>
+<a href="#content" class="bt-skip">Skip to content</a>
+<header>
+  <a class="home" href="./"><span>Beach Thermometer</span></a>
+  <a class="back" href="./">← Back to the map</a>
+</header>
+<main id="content">
+<h1>Accessibility statement</h1>
+<p><strong>Beach Thermometer</strong> is built by Tini Scientific so that everyone can track California's water temperatures and marine heatwaves, including people who use screen readers, keyboards, screen magnifiers or other assistive technology.</p>
+
+<h2>Our goal</h2>
+<p>We aim to meet the <strong>Web Content Accessibility Guidelines (WCAG) 2.0, Level AA</strong>, and Section 508 of the U.S. Rehabilitation Act. An independent accessibility audit by a professional is scheduled for the <strong>first quarter of 2027</strong>. We will update this page with its results and any fixes that follow.</p>
+
+<h2>What we've done</h2>
+<ul>
+  <li><strong>Keyboard access:</strong> every station marker, the station table, station cards and all controls work without a mouse. Markers are in north-to-south order, and a "Skip to station table" link lets keyboard users go past the map.</li>
+  <li><strong>Screen readers:</strong> each marker is named with its station type, name, latest temperature and whether a marine heatwave is suspected. Station cards open as dialogs and return focus when closed. Changes such as switching units are announced.</li>
+  <li><strong>A table version of the map:</strong> the Stations panel lists every station in a sortable data table, with the same information as the map.</li>
+  <li><strong>Text versions of the charts:</strong> each temperature chart has a written summary below it: the range over the period shown, how much of that time was above or below normal, and the latest reading compared with normal. The summaries update whenever the chart does. Each chart's data can also be downloaded as a CSV file.</li>
+  <li><strong>Not relying on color alone:</strong>
+    <ul>
+      <li>The temperature color scale was chosen to stay readable with common types of color blindness.</li>
+      <li>Stations with no recent data are drawn as hollow outlines.</li>
+      <li>Suspected heatwaves are marked by a pulsing ring, or a still ring with a legend if you have reduced motion turned on, as well as by red.</li>
+    </ul>
+  </li>
+  <li><strong>Reduced motion:</strong> if your device asks for reduced motion, animations stop.</li>
+  <li><strong>Zoom and small screens:</strong> the page works at 200% and 400% zoom and on phones, without sideways scrolling or hidden content.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+  <li><strong>The base map:</strong> street and terrain maps come from a third party (Esri) and are images, so place names on the base map aren't read by screen readers. The station information itself is fully available through marker names and the station table.</li>
+  <li><strong>Linked pages:</strong> links to the data providers' websites, such as NOAA's National Data Buoy Center, go to pages we don't control. Their accessibility may vary.</li>
+  <li><strong>Automated flags:</strong> "suspected marine heatwave" is calculated automatically from each station's record, and data from providers is sometimes delayed or missing. This is about data, not access, but we mention it so the flags aren't read as official warnings.</li>
+</ul>
+
+<h2>How this work was done</h2>
+<p>Beach Thermometer is meant to be a rapid-response page, and we wanted it to be accessible from the day it launched rather than after a long review. So the initial accessibility review was done with AI, and this statement was first drafted by AI.</p>
+<p>All accessibility fixes were reviewed by a person, and this statement was edited and revised by a person. The independent audit scheduled for the first quarter of 2027 will be carried out by a professional human auditor.</p>
+
+<h2>Tell us about a problem</h2>
+<p>If something on Beach Thermometer doesn't work for you, or you need the information in another format, please email <a class="email" href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. Tell us the page or station, what you were trying to do, and the device, browser or assistive technology you use, if you're comfortable sharing it. We aim to reply within <strong>5 business days</strong>.</p>
+
+<p class="updated">This statement was last updated on November 2, 2026.</p>
+</main>
+</body>
+</html>

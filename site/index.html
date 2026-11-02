@@ -77,6 +77,9 @@ body { display: flex; flex-direction: column; }
     .bt-page-header p { font-size: 12px; margin-top: 3px; }
 }
 .bt-credits img { height: 34px; width: auto; display: block; margin-top: 2px; }
+.bt-a11y-link { color: var(--muted); font-size: 10.5px; margin-top: 6px; }
+.bt-a11y-link:hover { color: white; }
+.bt-a11y-link:focus-visible { outline: 2px solid white; outline-offset: 2px; border-radius: 2px; }
 .bt-sources { display: none; }  /* phones only: shows and hides the "Data by" list */
 .bt-font { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; }
 
@@ -278,6 +281,7 @@ body.imperial .bt-imperial { display: inline; }
     .bt-sources[aria-expanded="true"]::after { content: '▴'; }
     .bt-sources:focus-visible { outline: 2px solid white; outline-offset: 2px; }
     .bt-credits img { height: 20px; }
+    .bt-a11y-link { margin: 0 0 0 4px; }
     .bt-value { font-size: 13px; }
     .bt-name { font-size: 16px; }
     .bt-temp { font-size: 20px; }
@@ -301,6 +305,7 @@ body.imperial .bt-imperial { display: inline; }
     <div class="by">
       <div class="bt-credit-label">Dashboard by</div>
       <img src="assets/logo.png" alt="Tini Scientific">
+      <a class="bt-a11y-link" href="accessibility.html">Accessibility</a>
     </div>
   </div>
 </header>
