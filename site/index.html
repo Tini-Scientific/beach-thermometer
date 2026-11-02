@@ -160,7 +160,14 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-mk .pulse { transform-box: fill-box; transform-origin: center; animation: bt-pulse 1.8s ease-out infinite; }
 @keyframes bt-pulse { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
 /* reduced motion: the ring holds still instead of pulsing, so a heatwave still has a cue besides color */
-@media (prefers-reduced-motion: reduce) { .bt-mk .pulse { animation: none; transform: scale(1.5); stroke-width: 0.8; } }
+.bt-cbar-key { display: none; }
+@media (prefers-reduced-motion: reduce) {
+    .bt-mk .pulse { animation: none; transform: scale(1.5); stroke-width: 0.8; }
+    /* the still ring needs explaining, since it doesn't draw the eye the way the pulse does */
+    .bt-cbar-key { display: block; border-top: 1px solid #e5e5e5; margin-top: 4px; padding: 5px 0 2px; }
+    .bt-cbar-key div { display: flex; align-items: center; gap: 7px; line-height: 26px; }
+    .bt-cbar-key .bt-mk { width: 26px; height: 26px; filter: drop-shadow(0 0 1.2px rgba(0,0,0,0.7)); }
+}
 
 /* type filter buttons in the list header (also the legend) */
 .bt-filter { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 6px; border-bottom: 1px solid var(--hairline); }
@@ -174,7 +181,7 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-list.collapsed .bt-filter { display: none; }
 
 /* °F / °C switch (Leaflet control): both options shown, the active one filled */
-.bt-units { display: flex; width: 240px; background: white; overflow: hidden; }
+.bt-units { display: flex; width: 120px; background: white; overflow: hidden; }
 .bt-units button {
     flex: 1; border: none; background: white; padding: 6px 0; cursor: pointer; font-family: inherit;
     font-size: 12px; font-weight: 600; color: #666;
@@ -251,7 +258,6 @@ body.imperial .bt-imperial { display: inline; }
     .bt-cbar { width: 178px; padding: 5px 8px 3px; font-size: 9px; }
     .bt-cbar-title { font-size: 11px; white-space: nowrap; }  /* one line */
     .bt-units { width: 110px; }
-    .bt-long { display: none; }  /* just °F | °C */
     .bt-units button { font-size: 10px; }
     .bt-page-header h1 { font-size: 22px; }
     .bt-page-header p { font-size: 12px; margin-top: 3px; }
@@ -602,7 +608,10 @@ const ColorbarCtrl = L.Control.extend({
         div.innerHTML = `<div class="bt-cbar-title">Water temperature `
             + `<span class="bt-metric">(°C)</span><span class="bt-imperial">(°F)</span></div>`
             + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${THERMAL.join(', ')});"></div>`
-            + `<div class="bt-cbar-ticks c">${ticksC}</div><div class="bt-cbar-ticks f">${ticksF}</div>`;
+            + `<div class="bt-cbar-ticks c">${ticksC}</div><div class="bt-cbar-ticks f">${ticksF}</div>`
+            // key for the still heatwave ring, shown only when motion is reduced
+            + `<div class="bt-cbar-key"><div>${markerHtml({type: 'cdip', status: 'normal', last_c: 17})}No heatwave</div>`
+            + `<div>${markerHtml({type: 'cdip', status: 'heatwave', last_c: 17})}Suspected marine heatwave</div></div>`;
         return div;
     },
 });
@@ -614,8 +623,8 @@ const UnitCtrl = L.Control.extend({
         const div = L.DomUtil.create('div', 'bt-units leaflet-bar leaflet-control bt-font');
         div.setAttribute('role', 'group');
         div.setAttribute('aria-label', 'Temperature units');
-        div.innerHTML = '<button data-unit="f" class="on" aria-pressed="true" onclick="btSetUnits(\'f\')"><span class="bt-long">Imperial </span>°F</button>'
-                      + '<button data-unit="c" aria-pressed="false" onclick="btSetUnits(\'c\')"><span class="bt-long">Metric </span>°C</button>';
+        div.innerHTML = '<button data-unit="f" class="on" aria-pressed="true" onclick="btSetUnits(\'f\')">°F</button>'
+                      + '<button data-unit="c" aria-pressed="false" onclick="btSetUnits(\'c\')">°C</button>';
         L.DomEvent.disableClickPropagation(div);
         return div;
     },
