@@ -162,6 +162,8 @@ body.imperial .bt-imperial { display: inline; }
 .bt-swatch { flex: none; }
 .bt-temp { font-size: 34px; font-weight: 700; line-height: 1.05; letter-spacing: -0.01em; }
 .bt-when { color: #6B7280; font-size: 12px; margin-top: 6px; }
+.bt-temp.stale { color: #9CA3AF; }
+.bt-stale-age { color: var(--heatwave-red); font-weight: 700; }
 .bt-note { color: #6B7280; font-size: 12px; }
 .bt-pill {
     display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 11px;
@@ -312,7 +314,10 @@ const STATUS = {
     cooler: () => ['Cooler than usual', ''],
     normal: () => ['Near normal', ''],
     noclim: () => ['No normal yet · record shorter than 8 years', ''],
+    stale: () => [`No data in the past ${latest.stale_days} days`, ''],
 };
+// last reading too old to describe the water now (update.py's STALE_DAYS): shown gray
+const isStale = s => s.status === 'stale';
 
 // popup subtitle and "Data: CDIP 215 / NDBC 46256" links by station type
 const buoyLabel = s => ({cdip: `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}`, ndbc: `Offshore buoy · NDBC ${s.id}`,
@@ -342,17 +347,19 @@ function popupHtml(s) {
     const when = pacific(s.last_time_ms, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
     // the station's map symbol in its temperature color, beside the number (colored text would vanish when pale yellow)
     const r = ({cdip: 9, ndbc: 11, ioos: 10.5, tide: 11, shore: 11.5})[s.type];
-    const hw = s.status === 'heatwave';
+    const hw = s.status === 'heatwave', stale = isStale(s);
     const swatch = `<svg class="bt-swatch" width="36" height="36" viewBox="0 0 24 24">`
-        + shape(s.type, r, `fill="${tempColor(s.last_c)}" stroke="${hw ? COLORS.heatwave : 'rgba(18,24,38,0.25)'}" `
+        + shape(s.type, r, `fill="${stale ? COLORS.noData : tempColor(s.last_c)}" stroke="${hw ? COLORS.heatwave : 'rgba(18,24,38,0.25)'}" `
                          + `stroke-width="${hw ? 2 : 1}" stroke-linejoin="round"`) + `</svg>`;
     const seg = Object.entries(WINDOWS).map(([k, [label]]) =>
         `<button class="bt-window${k === DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" `
         + `onclick="btWindow('${s.id}', '${k}', this)">${label}</button>`).join('');
     const hasAnom = s.clim_years && s.anom_c != null;
     return `<div class="bt-popup">${head}`
-        + `<div class="bt-sec bt-now">${swatch}<div><div class="bt-temp">${bothUnits(s.last_c)}</div>`
-        + `<div class="bt-when"><span class="bt-age" data-t="${s.last_time_ms}">${relAge(s.last_time_ms)}</span> · ${when}</div></div></div>`
+        + `<div class="bt-sec bt-now">${swatch}<div><div class="bt-temp${stale ? ' stale' : ''}">${bothUnits(s.last_c)}</div>`
+        + `<div class="bt-when">` + (stale ? `<span class="bt-stale-age">&gt;${latest.stale_days} days ago</span>`
+                                          : `<span class="bt-age" data-t="${s.last_time_ms}">${relAge(s.last_time_ms)}</span>`)
+        + ` · ${when}</div></div></div>`
         + `<div class="bt-sec"><span class="bt-pill ${pillClass}">${pill}</span>`
         + (hasAnom ? `<div class="bt-anom"><b>${bothUnits(s.anom_c, true)}</b> vs. normal for this date `
                      + `<span class="bt-note">(past 24 h)</span></div>` : '') + `</div>`
@@ -568,7 +575,7 @@ function markerHtml(s, inList = false) {
     const hw = s.status === 'heatwave';
     const r = ({cdip: 6.5, ndbc: 8, ioos: 7.5, tide: 8, shore: 9})[s.type];
     // legend symbols (s.legend) are neutral: color means temperature, shape means type
-    const fill = s.legend ? '#d9d9d9' : s.last_c == null ? COLORS.noData : tempColor(s.last_c);
+    const fill = s.legend ? '#d9d9d9' : s.last_c == null || isStale(s) ? COLORS.noData : tempColor(s.last_c);
     const red = inList ? '#FF5A6A' : COLORS.heatwave;
     const edge = hw ? red : inList ? 'rgba(255,255,255,0.6)' : '#ffffff';
     const join = 'stroke-linejoin="round"';
@@ -583,7 +590,7 @@ const ListCtrl = L.Control.extend({
         const div = L.DomUtil.create('div', 'bt-list bt-font collapsed');
         // sort keys: the column headers; dir 1 is each column's natural order (north to south,
         // A-Z, warmest first, largest anomaly first), -1 reverses it; no-data rows stay last
-        const order = {loc: s => -s.lat, name: s => s.name, temp: s => -s.last_c, anom: s => -s.anom_c};
+        const order = {loc: s => -s.lat, name: s => s.name, temp: s => (isStale(s) ? null : -s.last_c), anom: s => -s.anom_c};
         let sortKey = 'loc', sortDir = 1;
         const compare = (a, b) => {
             const va = order[sortKey](a), vb = order[sortKey](b);
@@ -617,7 +624,7 @@ const ListCtrl = L.Control.extend({
                 .sort(compare).map(s =>
                 `<div class="bt-row" data-id="${s.id}">${markerHtml(s, true)}<span class="bt-row-name">${s.name}</span>`
                 + `<span class="bt-row-loc">${s.lat.toFixed(1)}°N</span>`
-                + (s.last_c != null ? `<span class="bt-row-temp">${bothUnits(s.last_c)}</span>`
+                + (s.last_c != null ? `<span class="bt-row-temp${isStale(s) ? ' none' : ''}">${bothUnits(s.last_c)}</span>`
                                     : `<span class="bt-row-temp none">no data</span>`)
                 + `<span class="bt-row-anom${s.status === 'heatwave' ? ' hw' : ''}">`
                 + (s.anom_c != null ? bothUnits(s.anom_c, true) : '–') + `</span></div>`).join('');
@@ -669,14 +676,26 @@ const ListCtrl = L.Control.extend({
 
 fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
     latest = data;
-    const reporting = data.stations.filter(s => s.last_c != null);
-    stationList = data.stations;
+    // update.py marks readings older than stale_days; check again against the viewer's clock, since the data
+    // can be hours old (days, viewed locally), so a station near the cutoff is shown as the age line says
     data.stations.forEach(s => {
+        if (s.last_time_ms && Date.now() - s.last_time_ms > data.stale_days * 864e5 && !isStale(s)) {
+            ['anom_c', 'hot_days', 'cold_days', 'streak_is_whole_record'].forEach(k => delete s[k]);
+            s.status = 'stale';
+        }
+    });
+    const reporting = data.stations.filter(s => s.last_c != null && !isStale(s));
+    stationList = data.stations;
+    // north to south, so Tab moves steadily down the coast
+    [...data.stations].sort((a, b) => b.lat - a.lat).forEach(s => {
         const has = s.last_c != null;
         const m = L.marker([s.lat, s.lon], {icon: L.divIcon({className: 'bt-mk-wrap', iconSize: [28, 28],
                   html: markerHtml(s), popupAnchor: [0, -8], tooltipAnchor: [10, 0]})}).addTo(map);
-        m.bindTooltip(has ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
-                          : `${s.name}: no recent water temperature`, {className: 'bt-font'});
+        const old = has && Date.now() - s.last_time_ms > 864e5;  // over a day: say how old
+        m.bindTooltip((has && !isStale(s) ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
+                                            + (old ? ` · last reading ${relAge(s.last_time_ms)}` : '')
+                                          : `${s.name}: no water temperature in the past ${data.stale_days} days`)
+                      + (s.status === 'heatwave' ? ' · Suspected marine heatwave' : ''), {className: 'bt-font'});
         if (PHONE) {
             m.on('click', () => openSheet(s));  // full-screen sheet; the map stays put
         } else {

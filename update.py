@@ -16,7 +16,8 @@
    MHW_MIN_DAYS days in a row up to today (a suspected cold spell for below
    the 10th), otherwise warmer / cooler than usual when the 24 h anomaly is
    beyond ±NEAR_NORMAL_C, else near normal. Buoys whose record is too short
-   for a climatology (see build_climatology.py) get status 'noclim'.
+   for a climatology (see build_climatology.py) get status 'noclim', and
+   buoys whose latest reading is more than STALE_DAYS old get 'stale'.
 3. Exit with an error (so GitHub emails the repository owner) if no buoy has
    reported within STALE_HOURS.
 """
@@ -33,6 +34,7 @@ RECENT_DAYS = 45
 MHW_MIN_DAYS = 5
 NEAR_NORMAL_C = 0.25
 STALE_HOURS = 6
+STALE_DAYS = 14
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data')
@@ -141,6 +143,10 @@ def main():
                           'anom_c': round(float(anom), 2), 'status': status, 'hot_days': hot, 'cold_days': cold,
                           # a streak as long as the record may have started earlier
                           'streak_is_whole_record': bool(max(hot, cold) == len(daily))})
+        if 'last_time_ms' in entry and now.timestamp() * 1000 - entry['last_time_ms'] > STALE_DAYS * 864e5:
+            # too old to describe the water now: shown gray, and kept out of the heatwave count
+            entry = {k: v for k, v in entry.items() if k not in ('anom_c', 'hot_days', 'cold_days', 'streak_is_whole_record')}
+            entry['status'] = 'stale'
         entries.append(entry)
         with open(os.path.join(SITE_DATA, 'stations', f'{sid}.json'), 'w') as f:
             json.dump({'id': sid, 't': [int(t.timestamp() * 1000) for t in hourly.index],
@@ -151,10 +157,10 @@ def main():
             os.path.join(SITE_DATA, 'stations', f'{sid}.csv'))
 
     with open(os.path.join(SITE_DATA, 'latest.json'), 'w') as f:
-        json.dump({'generated_ms': int(now.timestamp() * 1000), 'recent_days': RECENT_DAYS,
+        json.dump({'generated_ms': int(now.timestamp() * 1000), 'recent_days': RECENT_DAYS, 'stale_days': STALE_DAYS,
                    'stations': entries}, f, indent=1, allow_nan=False)  # NaN isn't valid JSON for browsers
     counts = {s: sum(e.get('status') == s for e in entries)
-              for s in ['heatwave', 'warmer', 'normal', 'cooler', 'coldspell', 'noclim']}
+              for s in ['heatwave', 'warmer', 'normal', 'cooler', 'coldspell', 'noclim', 'stale']}
     print(f"{now:%Y-%m-%d %H:%M} UTC: {sum('status' in e for e in entries)}/{len(entries)} buoys reporting; {counts}")
 
     newest_h = min(((now.timestamp() * 1000 - e['last_time_ms']) / 3.6e6 for e in entries if 'last_time_ms' in e),
