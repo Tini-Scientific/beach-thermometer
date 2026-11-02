@@ -314,7 +314,7 @@ document.querySelector('.bt-sources').onclick = e => {
 };
 // ---- settings -------------------------------------------------------------
 // suspected marine heatwaves are red (marker and status text); everything else keeps the normal colors
-const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', heatwave: '#D7263D', text: '#555', noData: '#9E9E9E'};
+const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', heatwave: '#D7263D', text: '#555', noData: '#9E9E9E', noDataEdge: '#6E6E6E'};
 // climatology bands as pale solid tints (mixed with white) so legend swatches match
 const BAND_HOT = 'rgb(253, 238, 223)', BAND_COLD = 'rgb(224, 239, 255)';
 const WINDOWS = {day: ['Day', 1], week: ['Week', 7], d30: ['30 days', 30], d45: ['45 days', 45]};
@@ -412,8 +412,9 @@ function popupHtml(s) {
     const r = ({cdip: 9, ndbc: 11, ioos: 10.5, tide: 11, shore: 11.5})[s.type];
     const hw = s.status === 'heatwave', stale = isStale(s);
     const swatch = `<svg class="bt-swatch" width="36" height="36" viewBox="0 0 24 24">`
-        + shape(s.type, r, `fill="${stale ? COLORS.noData : tempColor(s.last_c)}" stroke="${hw ? COLORS.heatwave : 'rgba(18,24,38,0.25)'}" `
-                         + `stroke-width="${hw ? 2 : 1}" stroke-linejoin="round"`) + `</svg>`;
+        + (stale ? shape(s.type, r - 1, `fill="none" stroke="${COLORS.noDataEdge}" stroke-width="1.6" stroke-linejoin="round"`)
+                 : shape(s.type, r, `fill="${tempColor(s.last_c)}" stroke="${hw ? COLORS.heatwave : 'rgba(18,24,38,0.25)'}" `
+                                  + `stroke-width="${hw ? 2 : 1}" stroke-linejoin="round"`)) + `</svg>`;
     const seg = Object.entries(WINDOWS).map(([k, [label]]) =>
         `<button class="bt-window${k === DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" aria-pressed="${k === DEFAULT_WINDOW}" `
         + `onclick="btWindow('${s.id}', '${k}', this)">${label}</button>`).join('');
@@ -734,7 +735,10 @@ function markerHtml(s, inList = false) {
     const edge = hw ? red : inList ? 'rgba(255,255,255,0.6)' : '#ffffff';
     const join = 'stroke-linejoin="round"';
     let svg = hw && !inList ? shape(s.type, r, `class="pulse" fill="none" stroke="${red}" stroke-width="2"`) : '';
-    svg += shape(s.type, r, `fill="${fill}" stroke="${edge}" stroke-width="${hw ? 2 : 1.5}" ${join}`);
+    // no current temperature: hollow, so it can't pass for a mid-range color (gray looks like ~60 °F to red-green color blindness)
+    const empty = !s.legend && (s.last_c == null || isStale(s));
+    svg += empty ? shape(s.type, r, `fill="none" stroke="${inList ? COLORS.noData : COLORS.noDataEdge}" stroke-width="2" ${join}`)
+                 : shape(s.type, r, `fill="${fill}" stroke="${edge}" stroke-width="${hw ? 2 : 1.5}" ${join}`);
     const size = inList ? 14 : 26;
     return `<svg class="bt-mk" aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24">${svg}</svg>`;
 }
