@@ -67,7 +67,7 @@ body { display: flex; flex-direction: column; }
     margin-bottom: 10px; border-bottom: 1px solid var(--hairline); padding-bottom: 6px;
 }
 .bt-table { width: 100%; border-spacing: 0 4px; }
-.bt-label { color: var(--muted); font-size: 11px; }
+.bt-label { color: var(--muted); font-size: 11px; font-weight: 400; text-align: left; }
 .bt-value { font-size: 15px; font-weight: 700; text-align: right; }
 
 /* station list (Leaflet control, top left under the zoom buttons) */
@@ -76,33 +76,47 @@ body { display: flex; flex-direction: column; }
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.5); width: 380px; overflow: hidden;  /* room for station names */
 }
-.bt-list-head {
-    font-size: 11px; font-weight: 600; color: var(--silver); letter-spacing: 0.04em; padding: 8px 14px 6px;
-    border-bottom: 1px solid var(--hairline); user-select: none; display: flex; align-items: center; gap: 8px;
+.bt-list-head {  /* a button: opens and closes the list */
+    font-family: inherit; font-size: 11px; font-weight: 600; color: var(--silver); letter-spacing: 0.04em; padding: 8px 14px 6px;
+    width: 100%; background: none; border: none; border-bottom: 1px solid var(--hairline); text-align: left;
+    user-select: none; display: flex; align-items: center; gap: 8px; cursor: pointer;
 }
-.bt-list-head { cursor: pointer; }
+/* visible keyboard focus inside the list */
+.bt-list :focus-visible { outline: 2px solid white; outline-offset: 1px; border-radius: 3px; }
+/* text for screen readers only */
+.bt-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+         white-space: nowrap; border: 0; }
 .bt-list-title { flex: 1; }
-.bt-caret { font-size: 20px; line-height: 1; color: white; transform: rotate(180deg); transition: transform 0.2s; }  /* points up while open */
+.bt-caret { font-size: 20px; font-weight: 400; line-height: 1; color: white; transform: rotate(180deg); transition: transform 0.2s; }  /* points up while open */
 .bt-list.collapsed .bt-caret { transform: none; }
-.bt-list-rows { max-height: calc(100vh - 420px);  /* refined in fit() */ min-height: 80px; overflow-y: auto; padding: 4px 0;
+.bt-list-rows { max-height: calc(100vh - 420px);  /* refined in fit() */ min-height: 80px; overflow-y: auto; padding: 0 0 4px;
                 box-sizing: border-box; }
 .bt-list.collapsed { width: auto; }  /* just the STATIONS dropdown, so the map stays clear */
 .bt-list.collapsed .bt-list-rows, .bt-list.collapsed .bt-summary, .bt-list.collapsed .bt-list-foot { display: none; }
 .bt-list-foot { font-size: 10px; color: var(--muted); padding: 6px 14px 9px; border-top: 1px solid var(--hairline); }
 .bt-list.collapsed .bt-list-head { border-bottom: none; padding: 9px 14px; }
-.bt-row { display: flex; align-items: center; gap: 8px; padding: 4px 14px; cursor: pointer; font-size: 12px; }
-.bt-row:hover { background: rgba(255,255,255,0.06); }
-.bt-row-anom { width: 66px; text-align: right; white-space: nowrap; color: var(--silver); }
-.bt-row-anom.hw { color: #FF5A6A; font-weight: 700; }
-.bt-cols { display: flex; gap: 8px; padding: 6px 14px 2px; font-size: 10px; color: var(--silver); letter-spacing: 0.03em; }
-/* column headers sort the list; the active one is white with an arrow */
-.bt-cols span[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
-.bt-cols span[data-sort]:hover, .bt-cols span.on { color: white; }
-.bt-cols span.on::after { content: ' ▾'; }
-.bt-cols span.on.rev::after { content: ' ▴'; }
-.bt-row-loc, .bt-col-loc { width: 44px; text-align: right; white-space: nowrap; color: var(--silver); }
-.bt-col-temp, .bt-row-temp { width: 54px; text-align: right; }
-.bt-col-anom { width: 66px; text-align: right; }
+.bt-stations { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+.bt-stations td, .bt-stations th { padding: 4px; text-align: right; white-space: nowrap; color: var(--silver); font-weight: 400; }
+/* column headers stay put while the rows scroll; their buttons sort, and the active one is white with an arrow */
+.bt-stations thead th { position: sticky; top: 0; z-index: 1; background: #1b2130; font-size: 10px; letter-spacing: 0.03em;
+                        padding-top: 7px; }
+.bt-sort { font: inherit; letter-spacing: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+.bt-sort:hover, th.on .bt-sort { color: white; }
+th.on .bt-sort::after { content: ' ▾'; }
+th.on.rev .bt-sort::after { content: ' ▴'; }
+.bt-stations .c-sym { width: 14px; padding-left: 14px; text-align: left; }
+.bt-stations .c-name { text-align: left; }
+.bt-stations .c-loc { width: 54px; }  /* room for "Location ▾" */
+.bt-stations .c-temp { width: 58px; }
+.bt-stations .c-anom { width: 66px; padding-right: 14px; }
+.bt-stations tbody tr { cursor: pointer; }
+.bt-stations tbody tr:hover { background: rgba(255,255,255,0.06); }
+/* the station name: a button that opens its card (the whole row is clickable too) */
+.bt-row-btn { font: inherit; color: white; background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+              display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.bt-stations td.c-temp { color: white; font-weight: 700; }
+.bt-stations td.c-temp.none { color: var(--silver); font-weight: 400; }
+.bt-stations td.c-anom.hw { color: #FF5A6A; font-weight: 700; }
 
 /* station markers (map and list, inline SVG drawn by markerHtml): the shape is the
    type (NDBC offshore buoys diamonds, CDIP wave buoys circles, IOOS moorings
@@ -135,10 +149,7 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-filter button.off { opacity: 0.4; }
 .bt-filter button .n { margin-left: auto; color: var(--silver); }
 .bt-hw-note { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--silver); padding: 2px 9px; }
-.bt-list.collapsed .bt-filter, .bt-list.collapsed .bt-cols { display: none; }
-.bt-row-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bt-row-temp { font-weight: 700; white-space: nowrap; }
-.bt-row-temp.none { color: var(--silver); font-weight: 400; }
+.bt-list.collapsed .bt-filter { display: none; }
 
 /* °F / °C switch (Leaflet control): both options shown, the active one filled */
 .bt-units { display: flex; width: 240px; background: white; overflow: hidden; }
@@ -210,7 +221,7 @@ body.imperial .bt-imperial { display: inline; }
     .bt-list { width: 210px; }
     .bt-list { width: min(380px, calc(100vw - 20px)); }  /* open: nearly full width, so names fit */
     .leaflet-top.leaflet-left { z-index: 1001; }  /* the open list covers the color bar */
-    .bt-row-anom, .bt-col-anom { width: 50px; }
+    .bt-stations .c-anom { width: 50px; }
     .bt-cbar { width: 178px; padding: 5px 8px 3px; font-size: 9px; }
     .bt-cbar-title { font-size: 11px; white-space: nowrap; }  /* one line */
     .bt-units { width: 110px; }
@@ -521,6 +532,8 @@ document.fonts.ready.then(() => Object.keys(charts).forEach(id => {
 // Clicking a row opens that buoy's popup. Starts collapsed (just the STATIONS dropdown).
 const TYPES = {ndbc: 'Offshore buoys (NDBC)', cdip: 'Wave buoys (CDIP)', ioos: 'Moorings (IOOS)',
                tide: 'Tide stations (NOAA)', shore: 'Shore stations (IOOS)'};
+// one station's type, for the table's screen-reader text
+const TYPE_ONE = {ndbc: 'Offshore buoy', cdip: 'Wave buoy', ioos: 'Mooring', tide: 'Tide station', shore: 'Shore station'};
 const markers = {};
 let stationList = [];
 const PHONE = window.innerWidth <= 540;  // phones get a full-screen sheet instead of popups
@@ -582,7 +595,7 @@ function markerHtml(s, inList = false) {
     let svg = hw && !inList ? shape(s.type, r, `class="pulse" fill="none" stroke="${red}" stroke-width="2"`) : '';
     svg += shape(s.type, r, `fill="${fill}" stroke="${edge}" stroke-width="${hw ? 2 : 1.5}" ${join}`);
     const size = inList ? 14 : 26;
-    return `<svg class="bt-mk" width="${size}" height="${size}" viewBox="0 0 24 24">${svg}</svg>`;
+    return `<svg class="bt-mk" aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24">${svg}</svg>`;
 }
 const ListCtrl = L.Control.extend({
     options: {position: 'topleft'},
@@ -599,38 +612,51 @@ const ListCtrl = L.Control.extend({
             return sortDir * (typeof va === 'string' ? va.localeCompare(vb) : va - vb);
         };
         const filters = Object.entries(TYPES).map(([t, label]) =>
-            `<button data-type="${t}">${markerHtml({type: t, legend: true}, true)}${label}`
+            `<button data-type="${t}" aria-pressed="true">${markerHtml({type: t, legend: true}, true)}${label}`
             + `<span class="n">${stationList.filter(s => s.type === t).length}</span></button>`).join('');
-        div.innerHTML = `<div class="bt-list-head"><span class="bt-list-title">STATIONS</span>`
-                      + `<span class="bt-caret">▾</span></div>`
+        // aria-sort of each column in its natural order (dir 1)
+        const naturalSort = {name: 'ascending', loc: 'descending', temp: 'descending', anom: 'descending'};
+        const th = (key, label, title) => `<th scope="col" class="c-${key}"><button class="bt-sort" data-sort="${key}" `
+                                          + `title="${title}">${label}</button></th>`;
+        div.innerHTML = `<button class="bt-list-head" aria-expanded="false"><span class="bt-list-title">STATIONS</span>`
+                      + `<span class="bt-caret" aria-hidden="true">▾</span></button>`
                       + `<div class="bt-summary">`
                       + `<table class="bt-table">`
-                      + `<tr><td class="bt-label">Stations reporting</td><td class="bt-value" id="bt-n-reporting">–</td></tr>`
-                      + `<tr><td class="bt-label">Suspected marine heatwaves</td>`
+                      + `<tr><th scope="row" class="bt-label">Stations reporting</th><td class="bt-value" id="bt-n-reporting">–</td></tr>`
+                      + `<tr><th scope="row" class="bt-label">Suspected marine heatwaves</th>`
                       + `<td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>`
-                      + `<tr><td class="bt-label">Updated</td><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>`
+                      + `<tr><th scope="row" class="bt-label">Updated</th><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>`
                       + `</table></div>`
                       + `<div class="bt-filter">${filters}<div class="bt-hw-note">`
                       + `${markerHtml({type: 'cdip', legend: true, status: 'heatwave'}, true)}Suspected marine heatwave</div></div>`
-                      + `<div class="bt-cols"><span style="width:14px;"></span>`
-                      + `<span data-sort="name" style="flex:1;" title="Sort by name">Name</span>`
-                      + `<span data-sort="loc" class="bt-col-loc on" title="Sort by latitude">Location</span>`
-                      + `<span data-sort="temp" class="bt-col-temp" title="Sort by temperature">Temp</span>`
-                      + `<span data-sort="anom" class="bt-col-anom" title="Sort by difference from normal">Vs. Normal</span></div>`
-                      + `<div class="bt-list-rows"></div>`
+                      + `<div class="bt-list-rows"><table class="bt-stations">`
+                      + `<caption class="bt-sr">Stations and their latest water temperature. Select a name to open its details.</caption>`
+                      + `<thead><tr><th scope="col" class="c-sym"><span class="bt-sr">Type</span></th>`
+                      + th('name', 'Name', 'Sort by name') + th('loc', 'Location', 'Sort by latitude')
+                      + th('temp', 'Temp', 'Sort by temperature') + th('anom', 'Vs. Normal', 'Sort by difference from normal')
+                      + `</tr></thead><tbody></tbody></table></div>`
                       + `<div class="bt-list-foot">Visits are counted anonymously with GoatCounter: no cookies, no personal data.</div>`;
         const fill = () => {
-            div.querySelector('.bt-list-rows').innerHTML = stationList.filter(s => !hiddenTypes.has(s.type))
-                .sort(compare).map(s =>
-                `<div class="bt-row" data-id="${s.id}">${markerHtml(s, true)}<span class="bt-row-name">${s.name}</span>`
-                + `<span class="bt-row-loc">${s.lat.toFixed(1)}°N</span>`
-                + (s.last_c != null ? `<span class="bt-row-temp${isStale(s) ? ' none' : ''}">${bothUnits(s.last_c)}</span>`
-                                    : `<span class="bt-row-temp none">no data</span>`)
-                + `<span class="bt-row-anom${s.status === 'heatwave' ? ' hw' : ''}">`
-                + (s.anom_c != null ? bothUnits(s.anom_c, true) : '–') + `</span></div>`).join('');
-            div.querySelectorAll('.bt-row').forEach(r => {
+            const sr = text => `<span class="bt-sr">${text}</span>`;
+            div.querySelector('.bt-stations tbody').innerHTML = stationList.filter(s => !hiddenTypes.has(s.type))
+                .sort(compare).map(s => {
+                const hw = s.status === 'heatwave';
+                return `<tr data-id="${s.id}"><td class="c-sym">${markerHtml(s, true)}${sr(TYPE_ONE[s.type])}</td>`
+                    + `<th scope="row" class="c-name"><button class="bt-row-btn">${s.name}</button></th>`
+                    + `<td class="c-loc">${s.lat.toFixed(1)}°N</td>`
+                    + (s.last_c == null ? `<td class="c-temp none">no data</td>`
+                       : `<td class="c-temp${isStale(s) ? ' none' : ''}">${bothUnits(s.last_c)}`
+                         + (isStale(s) ? sr(`, over ${latest.stale_days} days old`) : '') + `</td>`)
+                    + `<td class="c-anom${hw ? ' hw' : ''}">`
+                    + (s.anom_c != null ? bothUnits(s.anom_c, true) : `<span aria-hidden="true">–</span>${sr('none')}`)
+                    + (hw ? sr(', suspected marine heatwave') : '') + `</td></tr>`;
+            }).join('');
+            div.querySelectorAll('.bt-stations tbody tr').forEach(r => {
                 r.onclick = () => {
-                    if (window.innerWidth <= 540) div.classList.add('collapsed');  // on phones, get out of the popup's way
+                    if (window.innerWidth <= 540) {  // on phones, get out of the card's way
+                        div.classList.add('collapsed');
+                        head.setAttribute('aria-expanded', 'false');
+                    }
                     openStation(r.dataset.id);
                 };
             });
@@ -645,14 +671,21 @@ const ListCtrl = L.Control.extend({
         setTimeout(fit, 0);
         document.fonts.ready.then(fit);  // fonts shift the layout a little
         window.addEventListener('resize', fit);
-        div.querySelectorAll('.bt-cols span[data-sort]').forEach(h => {
-            h.onclick = () => {
-                sortDir = h.dataset.sort === sortKey ? -sortDir : 1;  // same column again reverses
-                sortKey = h.dataset.sort;
-                div.querySelectorAll('.bt-cols span[data-sort]').forEach(x => {
-                    x.classList.toggle('on', x === h);
-                    x.classList.toggle('rev', x === h && sortDir === -1);
-                });
+        // mark the sorted column: white with an arrow, and aria-sort for screen readers
+        const markSort = () => div.querySelectorAll('.bt-sort').forEach(b => {
+            const cell = b.parentElement, on = b.dataset.sort === sortKey;
+            cell.classList.toggle('on', on);
+            cell.classList.toggle('rev', on && sortDir === -1);
+            const flip = {ascending: 'descending', descending: 'ascending'};
+            if (on) cell.setAttribute('aria-sort', sortDir === 1 ? naturalSort[sortKey] : flip[naturalSort[sortKey]]);
+            else cell.removeAttribute('aria-sort');
+        });
+        markSort();
+        div.querySelectorAll('.bt-sort').forEach(b => {
+            b.onclick = () => {
+                sortDir = b.dataset.sort === sortKey ? -sortDir : 1;  // same column again reverses
+                sortKey = b.dataset.sort;
+                markSort();
                 fill();
             };
         });
@@ -661,13 +694,18 @@ const ListCtrl = L.Control.extend({
                 const t = b.dataset.type;
                 hiddenTypes.has(t) ? hiddenTypes.delete(t) : hiddenTypes.add(t);
                 b.classList.toggle('off', hiddenTypes.has(t));
+                b.setAttribute('aria-pressed', String(!hiddenTypes.has(t)));
                 stationList.filter(s => s.type === t).forEach(s => {
                     hiddenTypes.has(t) ? map.removeLayer(markers[s.id]) : markers[s.id].addTo(map);
                 });
                 fill();
             };
         });
-        div.querySelector('.bt-list-head').onclick = () => { div.classList.toggle('collapsed'); fit(); };  // size the rows once they're visible
+        const head = div.querySelector('.bt-list-head');
+        head.onclick = () => {
+            head.setAttribute('aria-expanded', String(!div.classList.toggle('collapsed')));
+            fit();  // size the rows once they're visible
+        };
         L.DomEvent.disableClickPropagation(div);
         L.DomEvent.disableScrollPropagation(div);
         return div;
