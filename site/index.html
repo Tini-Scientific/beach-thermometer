@@ -36,6 +36,11 @@ body { display: flex; flex-direction: column; }
 
 /* page header bar above the map: title and description on the left; on the right,
    "Data by" (operators, in a box) and "Dashboard by" (Tini logo), separated by a hairline */
+/* hidden until it has keyboard focus */
+.bt-skip { position: absolute; left: 12px; top: -60px; z-index: 3000; background: white; color: var(--ink);
+           font-weight: 700; font-size: 14px; padding: 10px 14px; border-radius: 8px; text-decoration: none;
+           box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.bt-skip:focus { top: 12px; outline: 3px solid var(--fandango); outline-offset: 2px; }
 .bt-page-header {
     background: var(--ink); border-bottom: 1px solid var(--hairline); color: white;
     background-image: linear-gradient(90deg, rgba(198,55,160,0.10), rgba(18,24,38,0) 45%);
@@ -242,6 +247,8 @@ body.imperial .bt-imperial { display: inline; }
 </style>
 </head>
 <body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
+<!-- first stop for the keyboard: past the map's markers to the same stations as a table -->
+<a href="#" class="bt-skip" id="bt-skip">Skip to station table</a>
 <header class="bt-page-header bt-font">
   <div class="bt-page-title">
     <h1>Beach Thermometer</h1>
@@ -702,6 +709,11 @@ const ListCtrl = L.Control.extend({
             };
         });
         const head = div.querySelector('.bt-list-head');
+        document.getElementById('bt-skip').onclick = e => {  // open the list and go to its first station
+            e.preventDefault();
+            if (div.classList.contains('collapsed')) head.click();
+            div.querySelector('.bt-row-btn').focus();
+        };
         head.onclick = () => {
             head.setAttribute('aria-expanded', String(!div.classList.toggle('collapsed')));
             fit();  // size the rows once they're visible
@@ -728,12 +740,17 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
     [...data.stations].sort((a, b) => b.lat - a.lat).forEach(s => {
         const has = s.last_c != null;
         const m = L.marker([s.lat, s.lon], {icon: L.divIcon({className: 'bt-mk-wrap', iconSize: [28, 28],
-                  html: markerHtml(s), popupAnchor: [0, -8], tooltipAnchor: [10, 0]})}).addTo(map);
+                  html: markerHtml(s), popupAnchor: [0, -8], tooltipAnchor: [10, 0]})});
         const old = has && Date.now() - s.last_time_ms > 864e5;  // over a day: say how old
-        m.bindTooltip((has && !isStale(s) ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
+        const label = (has && !isStale(s) ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
                                             + (old ? ` · last reading ${relAge(s.last_time_ms)}` : '')
                                           : `${s.name}: no water temperature in the past ${data.stale_days} days`)
-                      + (s.status === 'heatwave' ? ' · Suspected marine heatwave' : ''), {className: 'bt-font'});
+                      + (s.status === 'heatwave' ? ' · Suspected marine heatwave' : '');
+        m.bindTooltip(label, {className: 'bt-font'});
+        // the same words for screen readers (commas read better than '·'); Leaflet rebuilds the
+        // marker's element each time a type filter puts it back on the map, so name it on every add
+        m.on('add', () => m.getElement().setAttribute('aria-label', `${TYPE_ONE[s.type]}, ${label.replace(/ · /g, ', ')}`));
+        m.addTo(map);
         if (PHONE) {
             m.on('click', () => openSheet(s));  // full-screen sheet; the map stays put
         } else {
