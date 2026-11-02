@@ -32,7 +32,8 @@
 }
 html, body { margin: 0; height: 100%; background: #1a1a1a; }
 body { display: flex; flex-direction: column; }
-#map { position: relative; flex: 1; }
+/* the map keeps a usable height; when the header grows (zoomed in, narrow window) the page scrolls instead */
+#map { position: relative; flex: 1; min-height: 340px; }
 
 /* page header bar above the map: title and description on the left; on the right,
    "Data by" (operators, in a box) and "Dashboard by" (Tini logo), separated by a hairline */
@@ -62,7 +63,21 @@ body { display: flex; flex-direction: column; }
     border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); border-radius: 8px; padding: 6px 10px;
     max-width: 460px; color: var(--muted); font-size: 10.5px; line-height: 1.55;
 }
+/* medium widths (and desktops zoomed in): the credits drop below the title instead of squeezing it */
+@media (max-width: 1000px) {
+    .bt-page-header { flex-wrap: wrap; row-gap: 12px; padding: 12px 20px; }
+    .bt-page-title { flex-basis: 100%; }
+    .bt-credits { flex: 1 1 auto; min-width: 0; }
+    .bt-credits .data { flex: 1 1 auto; min-width: 0; }
+    .bt-credit-box { max-width: none; }
+}
+/* short windows: a smaller header leaves more of the map */
+@media (max-height: 560px) {
+    .bt-page-header h1 { font-size: 22px; }
+    .bt-page-header p { font-size: 12px; margin-top: 3px; }
+}
 .bt-credits img { height: 34px; width: auto; display: block; margin-top: 2px; }
+.bt-sources { display: none; }  /* phones only: shows and hides the "Data by" list */
 .bt-font { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; }
 
 /* summary at the top of the station panel: title, counts, update time */
@@ -96,6 +111,7 @@ body { display: flex; flex-direction: column; }
 .bt-list.collapsed .bt-caret { transform: none; }
 .bt-list-rows { max-height: calc(100vh - 420px);  /* refined in fit() */ min-height: 80px; overflow-y: auto; padding: 0 0 4px;
                 box-sizing: border-box; }
+.bt-list.tight { overflow-y: auto; }  /* see fit() */
 .bt-list.collapsed { width: auto; }  /* just the STATIONS dropdown, so the map stays clear */
 .bt-list.collapsed .bt-list-rows, .bt-list.collapsed .bt-summary, .bt-list.collapsed .bt-list-foot { display: none; }
 .bt-list-foot { font-size: 10px; color: var(--muted); padding: 6px 14px 9px; border-top: 1px solid var(--hairline); }
@@ -204,7 +220,8 @@ body.imperial .bt-imperial { display: inline; }
 /* phones: a station opens as a card over the screen instead of a map popup */
 .bt-sheet { position: fixed; inset: 0; z-index: 2000; background: rgba(18,24,38,0.45); }  /* dims the map; tap to close */
 .bt-sheet-card {
-    position: absolute; left: 12px; right: 12px; top: 50%; transform: translateY(-50%);  /* centered, as tall as its content */
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);  /* centered, as tall as its content */
+    width: min(520px, calc(100% - 24px));
     max-height: calc(100% - 24px); background: white; border-radius: 12px; overflow-y: auto;
     -webkit-overflow-scrolling: touch; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     font: 13px/1.5 'Helvetica Neue', Arial, Helvetica, sans-serif;
@@ -241,7 +258,18 @@ body.imperial .bt-imperial { display: inline; }
     .bt-credits { font-size: 9px; width: 100%; }
     .bt-credits .by { flex-direction: row; align-items: center; gap: 6px; padding-left: 0; border-left: none; }
     .bt-credits .by .bt-credit-label { margin: 0; }
-    .bt-credits .data { display: none; }  /* no room on phones */
+    .bt-credits { flex-wrap: wrap; align-items: center; justify-content: space-between; row-gap: 8px; }
+    .bt-credits .data { display: none; }  /* no room on phones until opened with the Data sources button */
+    .bt-credits.open .data { display: block; order: 3; flex-basis: 100%; }
+    .bt-credits .data .bt-credit-label { display: none; }  /* the button already says it */
+    .bt-sources {
+        display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 10px; font-weight: 600;
+        letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); cursor: pointer;
+        background: none; border: 1px solid var(--hairline); border-radius: 6px; padding: 6px 10px;
+    }
+    .bt-sources::after { content: '▾'; }
+    .bt-sources[aria-expanded="true"]::after { content: '▴'; }
+    .bt-sources:focus-visible { outline: 2px solid white; outline-offset: 2px; }
     .bt-credits img { height: 20px; }
     .bt-value { font-size: 13px; }
     .bt-name { font-size: 16px; }
@@ -258,7 +286,8 @@ body.imperial .bt-imperial { display: inline; }
     <p>Hourly water temperatures from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves.</p>
   </div>
   <div class="bt-credits">
-    <div class="data">
+    <button class="bt-sources" aria-expanded="false" aria-controls="bt-data-by">Data sources</button>
+    <div class="data" id="bt-data-by">
       <div class="bt-credit-label">Data by</div>
       <div class="bt-credit-box">NOAA (NDBC, CO-OPS, U.S. IOOS) · Scripps Institution of Oceanography (CDIP) · MBARI · UC Davis Bodega Marine Laboratory · SCCOOS · CeNCOOS · Cal Poly Humboldt · Cal Poly San Luis Obispo · UC Santa Cruz · Moss Landing Marine Laboratories · Monterey Bay Aquarium · SFSU Romberg Tiburon Center · Exploratorium</div>
     </div>
@@ -270,6 +299,11 @@ body.imperial .bt-imperial { display: inline; }
 </header>
 <div id="map"></div>
 <script>
+document.querySelector('.bt-sources').onclick = e => {
+    const open = e.currentTarget.closest('.bt-credits').classList.toggle('open');
+    e.currentTarget.setAttribute('aria-expanded', open);
+    window.dispatchEvent(new Event('resize'));  // the taller header shrinks the map
+};
 // ---- settings -------------------------------------------------------------
 // suspected marine heatwaves are red (marker and status text); everything else keeps the normal colors
 const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', heatwave: '#D7263D', text: '#555', noData: '#9E9E9E'};
@@ -592,9 +626,11 @@ const TYPES = {ndbc: 'Offshore buoys (NDBC)', cdip: 'Wave buoys (CDIP)', ioos: '
 const TYPE_ONE = {ndbc: 'Offshore buoy', cdip: 'Wave buoy', ioos: 'Mooring', tide: 'Tide station', shore: 'Shore station'};
 const markers = {};
 let stationList = [];
-const PHONE = window.innerWidth <= 540;  // phones get a full-screen sheet instead of popups
+// The card opens over the whole window (the sheet) when a popup on the map wouldn't fit: on phones, in
+// short windows, and when the page is zoomed in. Decided each time, so zooming after loading works.
+const useSheet = () => window.innerWidth <= 540 || document.getElementById('map').clientHeight < 680;
 
-// phones: the station's details open in a card over the screen, with a Close button pinned at the top.
+// The sheet: the station's details in a card over the window, with a Close button pinned at the top.
 // The browser's back button closes it too.
 // The card is a dialog: focus moves to the station's name when it opens, Escape closes it, and focus
 // goes back to the marker or table row that opened it. The phone sheet is modal (the page behind is
@@ -649,7 +685,7 @@ function countOpen(s) {
 }
 function openStation(id) {
     opener = document.activeElement;  // the table row's button
-    if (PHONE) openSheet(latest.stations.find(s => s.id === id));
+    if (useSheet()) openSheet(latest.stations.find(s => s.id === id));
     else markers[id].openPopup();
 }
 const hiddenTypes = new Set();
@@ -745,11 +781,16 @@ const ListCtrl = L.Control.extend({
             });
         };
         fill();
-        // let the list's rows run to the bottom of the window, whatever its size
+        // let the list's rows run to the bottom of the map, whatever its size; with too little room for
+        // them (zoomed in, short window) the whole panel scrolls instead, so every row stays reachable
         const fit = () => {
-            const rows = div.querySelector('.bt-list-rows');
-            const room = window.innerHeight - rows.getBoundingClientRect().top - div.querySelector('.bt-list-foot').offsetHeight - 24;
-            rows.style.maxHeight = `${Math.max(room, 80)}px`;
+            const rows = div.querySelector('.bt-list-rows'), box = map.getContainer().getBoundingClientRect();
+            const rowsTop = div.getBoundingClientRect().top + rows.offsetTop;  // ignores the panel's own scrolling
+            const room = box.bottom - rowsTop - div.querySelector('.bt-list-foot').offsetHeight - 14;
+            const tight = room < 160;
+            div.classList.toggle('tight', tight);
+            rows.style.maxHeight = tight ? 'none' : `${room}px`;
+            div.style.maxHeight = tight ? `${box.height - 20}px` : '';
         };
         setTimeout(fit, 0);
         document.fonts.ready.then(fit);  // fonts shift the layout a little
@@ -827,30 +868,30 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
         // marker's element each time a type filter puts it back on the map, so name it on every add
         m.on('add', () => m.getElement().setAttribute('aria-label', `${TYPE_ONE[s.type]}, ${label.replace(/ · /g, ', ')}`));
         m.addTo(map);
-        if (PHONE) {
-            m.on('click', () => { opener = m.getElement(); openSheet(s); });  // full-screen sheet; the map stays put
-        } else {
-            // pan popups clear of the zoom / layer / unit controls along the top
-            m.bindPopup(() => popupHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
-                                             autoPanPaddingBottomRight: [10, 10]});
-            m.on('popupopen', e => {
-                const el = e.popup.getElement();
-                opener = opener || document.activeElement;  // the marker (Enter or click), unless the table opened it
-                el.setAttribute('role', 'dialog');
-                el.setAttribute('aria-labelledby', `bt-name-${s.id}`);
-                focusCard(el);
-                countOpen(s);
-                e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.textContent = relAge(Number(el.dataset.t)); });
-                if (has) openChart(s.id);
-            });
-            // closed with Escape or ✕ (focus was in the card): back to the opener; closed by clicking
-            // elsewhere on the map: leave focus where the click put it
-            m.on('popupclose', e => {
-                const a = document.activeElement;
-                if (a === document.body || e.popup.getElement().contains(a)) returnFocus();
-                else opener = null;
-            });
-        }
+        // pan popups clear of the zoom / layer / unit controls along the top
+        m.bindPopup(() => popupHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
+                                         autoPanPaddingBottomRight: [10, 10]});
+        // a click (or Enter) opens the popup or the sheet, whichever fits, instead of always the popup
+        m.off({click: m._openPopup, keypress: m._onKeyPress});
+        m.on('click', () => openStation(s.id));
+        m.on('keypress', e => { if (['Enter', ' '].includes(e.originalEvent.key)) openStation(s.id); });
+        m.on('popupopen', e => {
+            const el = e.popup.getElement();
+            opener = opener || document.activeElement;  // the marker (Enter or click), unless the table opened it
+            el.setAttribute('role', 'dialog');
+            el.setAttribute('aria-labelledby', `bt-name-${s.id}`);
+            focusCard(el);
+            countOpen(s);
+            e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.textContent = relAge(Number(el.dataset.t)); });
+            if (has) openChart(s.id);
+        });
+        // closed with Escape or ✕ (focus was in the card): back to the opener; closed by clicking
+        // elsewhere on the map: leave focus where the click put it
+        m.on('popupclose', e => {
+            const a = document.activeElement;
+            if (a === document.body || e.popup.getElement().contains(a)) returnFocus();
+            else opener = null;
+        });
         markers[s.id] = m;
         // ?station=46026 opens that buoy's popup (shareable links)
         if (new URLSearchParams(location.search).get('station') === s.id) openStation(s.id);
