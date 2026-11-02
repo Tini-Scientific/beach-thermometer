@@ -286,7 +286,7 @@ body.imperial .bt-imperial { display: inline; }
 </head>
 <body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
 <!-- first stop for the keyboard: past the map's markers to the same stations as a table -->
-<a href="#" class="bt-skip" id="bt-skip">Skip to station table</a>
+<a href="#map" class="bt-skip" id="bt-skip">Skip to station table</a>
 <header class="bt-page-header bt-font">
   <div class="bt-page-title">
     <h1>Beach Thermometer</h1>
@@ -304,7 +304,7 @@ body.imperial .bt-imperial { display: inline; }
     </div>
   </div>
 </header>
-<div id="map"></div>
+<main id="map" aria-label="Map of water temperature stations"></main>
 <div id="bt-announce" class="bt-sr" aria-live="polite"></div>  <!-- read out by screen readers, e.g. a unit switch -->
 <script>
 document.querySelector('.bt-sources').onclick = e => {
