@@ -159,7 +159,8 @@ body.imperial .bt-cbar-ticks.c { display: none; }
 body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-mk .pulse { transform-box: fill-box; transform-origin: center; animation: bt-pulse 1.8s ease-out infinite; }
 @keyframes bt-pulse { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .bt-mk .pulse { display: none; } }
+/* reduced motion: the ring holds still instead of pulsing, so a heatwave still has a cue besides color */
+@media (prefers-reduced-motion: reduce) { .bt-mk .pulse { animation: none; transform: scale(1.5); stroke-width: 0.8; } }
 
 /* type filter buttons in the list header (also the legend) */
 .bt-filter { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 6px; border-bottom: 1px solid var(--hairline); }
