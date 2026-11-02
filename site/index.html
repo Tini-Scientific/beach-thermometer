@@ -171,7 +171,8 @@ body.imperial .bt-imperial { display: inline; }
 
 /* popup (desktop bubble and phone card share this content) */
 .bt-popup { width: 460px; font-family: 'Montserrat', 'Helvetica Neue', sans-serif; color: var(--ink); }
-.bt-name { font-size: 18px; font-weight: 700; line-height: 1.25; }
+.bt-name { font-size: 18px; font-weight: 700; line-height: 1.25; margin: 0; }
+.bt-name:focus { outline: none; }  /* focused only so screen readers start at the name */
 .bt-sub { color: #6B7280; font-size: 12px; margin-top: 5px; line-height: 1.45; }
 .bt-sec { margin-top: 24px; }
 .bt-now { display: flex; align-items: center; gap: 12px; }
@@ -215,6 +216,8 @@ body.imperial .bt-imperial { display: inline; }
 }
 .bt-sheet .bt-popup { width: auto; padding: 0 20px 22px; margin-top: -8px; }
 .bt-sheet .bt-chart { width: 100%; }
+.bt-chart-sum { font-size: 12px; color: #4B5563; line-height: 1.55; margin: 12px 0 0; }
+.bt-chart-sum .bt-metric, .bt-chart-sum .bt-imperial, .bt-chart-sum .nw { white-space: nowrap; }  /* keep each value and date whole */
 .bt-chart-msg { position: absolute; inset: 0; pointer-events: none;  /* let clicks and hovers reach the chart */ display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
 .bt-source { color: #6B7280; text-decoration: underline; }
 .leaflet-popup-content { margin: 20px 20px; }
@@ -356,7 +359,7 @@ const dataLinks = s => `<span>Data: `
          + link(`${NDBC}/station_page.php?station=${s.id}`, `NDBC ${s.id}`)) + `</span>`;
 
 function popupHtml(s) {
-    const head = `<div class="bt-name">${s.name}</div><div class="bt-sub">${buoyLabel(s)}</div>`;
+    const head = `<h2 class="bt-name" id="bt-name-${s.id}" tabindex="-1">${s.name}</h2><div class="bt-sub">${buoyLabel(s)}</div>`;
     if (s.last_c == null) {
         return `<div class="bt-popup">${head}<div class="bt-sec bt-note">No water temperature reported in the past `
              + `${latest.recent_days} days.</div><div class="bt-foot">${dataLinks(s)}</div></div>`;
@@ -382,8 +385,9 @@ function popupHtml(s) {
         + (hasAnom ? `<div class="bt-anom"><b>${bothUnits(s.anom_c, true)}</b> vs. normal for this date `
                      + `<span class="bt-note">(past 24 h)</span></div>` : '') + `</div>`
         + `<div class="bt-sec"><div class="bt-seg">${seg}</div>`
-        + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}"></canvas>`
-        + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div></div>`
+        + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}" role="img" aria-label="Water temperature chart, described below"></canvas>`
+        + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
+        + `<p class="bt-chart-sum" id="bt-sum-${s.id}" aria-live="polite"></p></div>`
         + `<div class="bt-foot"><a class="bt-download" href="data/stations/${s.id}.csv" download="NDBC_${s.id}_water_temp.csv">`
         + `Download data (CSV)</a> · ${dataLinks(s)}`
         + (s.clim_years ? `<br>Normal: this station's ${s.clim_years[0]}–${s.clim_years[1]} record` : '') + `</div>`
@@ -425,6 +429,7 @@ function drawChart(id) {
     const tickLabel = v => days === 1 ? pacific(v, {hour: 'numeric'})
                                       : pacific(v, {month: 'short', day: 'numeric'});
     document.getElementById(`bt-msg-${id}`).textContent = temp.length ? '' : `No data in the past ${WINDOWS[st.win][0].toLowerCase()}`;
+    document.getElementById(`bt-sum-${id}`).innerHTML = chartSummary(id, t0, days);
     charts[id] = new Chart(canvas, {
         type: 'line',
         data: {datasets: [
@@ -460,6 +465,50 @@ function drawChart(id) {
             },
         },
     });
+}
+
+// Plain-language summary under the chart, which is also its text alternative: the range over the
+// window shown, how much of it was above or below the normal range, and the latest reading against normal.
+function bothRange(a, b) {
+    return `<span class="bt-metric">${a.toFixed(1)}–${b.toFixed(1)} °C</span>`
+         + `<span class="bt-imperial">${(a * 9 / 5 + 32).toFixed(1)}–${(b * 9 / 5 + 32).toFixed(1)} °F</span>`;
+}
+function chartSummary(id, t0, days) {
+    const d = stationData[id], s = latest.stations.find(x => x.id === id);
+    const span = days === 1 ? 'Past 24 hours' : `Past ${days} days`;
+    const when = t => `<span class="nw">` + pacific(t, days === 1 ? {hour: 'numeric', minute: '2-digit'} : {month: 'short', day: 'numeric'}) + `</span>`;
+    const doy = t => dayOfYear(t) - 1;
+    const parts = [];
+    if (isStale(s)) {
+        parts.push(`No readings in the past ${latest.stale_days} days; the last was on `
+                   + `${pacific(s.last_time_ms, {month: 'short', day: 'numeric'})}.`);
+    }
+    const idx = d.t.map((t, i) => i).filter(i => d.t[i] >= t0);
+    if (!idx.length) return parts.length ? parts.join(' ') : `No readings in the ${span.toLowerCase()}.`;
+    const lo = idx.reduce((a, i) => (d.c[i] < d.c[a] ? i : a)), hi = idx.reduce((a, i) => (d.c[i] > d.c[a] ? i : a));
+    parts.push(`${span}: water temperature ranged from ${bothUnits(d.c[lo])} (${when(d.t[lo])}) `
+               + `to ${bothUnits(d.c[hi])} (${when(d.t[hi])}).`);
+    const rated = idx.filter(i => d.clim_p90[doy(d.t[i])] != null);
+    if (rated.length) {
+        const share = f => rated.filter(f).length / rated.length;
+        const above = share(i => d.c[i] > d.clim_p90[doy(d.t[i])]), below = share(i => d.c[i] < d.clim_p10[doy(d.t[i])]);
+        const amount = x => (x > 0.995 ? 'the whole time' : `${Math.max(1, Math.round(x * 100))}% of the time`);
+        // a heatwave or cold spell running to today, when it's shorter than the window
+        const streak = n => (n && n < days ? `, including the last ${n} days in a row` : '');
+        const hot = streak(s.status === 'heatwave' ? s.hot_days : 0), cold = streak(s.status === 'coldspell' ? s.cold_days : 0);
+        const clauses = [];
+        if (above) clauses.push(`above the normal range ${amount(above)}${hot}`);
+        if (below) clauses.push(`${above ? 'below it' : 'below the normal range'} ${amount(below)}${cold}`);
+        const never = clauses.length === 1 && !hot && !cold && Math.max(above, below) <= 0.995
+                    ? ` and never ${above ? 'below' : 'above'} it` : '';
+        parts.push(clauses.length ? `It was ${clauses.join(' and ')}${never}.` : 'It stayed within the normal range.');
+    }
+    if (!isStale(s)) {
+        const k = doy(s.last_time_ms);
+        parts.push(`Latest: ${bothUnits(s.last_c)}` + (d.clim_mean[k] != null
+            ? `; normal for this date is ${bothUnits(d.clim_mean[k])} (normal range ${bothRange(d.clim_p10[k], d.clim_p90[k])}).` : '.'));
+    }
+    return parts.join(' ');
 }
 
 async function openChart(id) {
@@ -547,14 +596,33 @@ const PHONE = window.innerWidth <= 540;  // phones get a full-screen sheet inste
 
 // phones: the station's details open in a card over the screen, with a Close button pinned at the top.
 // The browser's back button closes it too.
+// The card is a dialog: focus moves to the station's name when it opens, Escape closes it, and focus
+// goes back to the marker or table row that opened it. The phone sheet is modal (the page behind is
+// inert, so Tab stays in the card); the desktop popup leaves the map usable.
+let opener = null;
+const focusCard = el => el.querySelector('.bt-name').focus({preventScroll: true});  // don't scroll the map pane
+function returnFocus() {
+    // a phone collapses the list when a row opens the card: open it again so the row can take focus
+    const list = opener && opener.closest('.bt-list.collapsed');
+    if (list) list.querySelector('.bt-list-head').click();
+    if (opener && opener.isConnected) opener.focus({preventScroll: true});
+    opener = null;
+}
+const BEHIND_SHEET = ['header', '#map', '#bt-skip'];
 function openSheet(s) {
     closeSheet(true);
+    opener = opener || document.activeElement;
     const div = document.createElement('div');
     div.className = 'bt-sheet';
+    div.setAttribute('role', 'dialog');
+    div.setAttribute('aria-modal', 'true');
+    div.setAttribute('aria-labelledby', `bt-name-${s.id}`);
     div.innerHTML = `<div class="bt-sheet-card"><div class="bt-sheet-bar">`
                   + `<button class="bt-sheet-close" onclick="history.back()">✕ Close</button></div>${popupHtml(s)}</div>`;
     div.onclick = e => { if (e.target === div) history.back(); };  // tap outside the card
     document.body.appendChild(div);
+    BEHIND_SHEET.forEach(q => { document.querySelector(q).inert = true; });
+    focusCard(div);
     history.pushState({sheet: s.id}, '');
     countOpen(s);
     if (s.last_c != null) openChart(s.id);
@@ -563,9 +631,16 @@ function closeSheet(replacing) {
     const sheet = document.querySelector('.bt-sheet');
     if (!sheet) return;
     sheet.remove();
+    BEHIND_SHEET.forEach(q => { document.querySelector(q).inert = false; });
     if (replacing) history.replaceState(null, '');
+    else returnFocus();
 }
 window.addEventListener('popstate', () => closeSheet());
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (document.querySelector('.bt-sheet')) history.back();
+    else map.closePopup();  // a no-op when none is open
+});
 // GoatCounter event per station opened (which stations people look at); a no-op until its script loads
 function countOpen(s) {
     if (window.goatcounter && window.goatcounter.count) {
@@ -573,6 +648,7 @@ function countOpen(s) {
     }
 }
 function openStation(id) {
+    opener = document.activeElement;  // the table row's button
     if (PHONE) openSheet(latest.stations.find(s => s.id === id));
     else markers[id].openPopup();
 }
@@ -752,15 +828,27 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
         m.on('add', () => m.getElement().setAttribute('aria-label', `${TYPE_ONE[s.type]}, ${label.replace(/ · /g, ', ')}`));
         m.addTo(map);
         if (PHONE) {
-            m.on('click', () => openSheet(s));  // full-screen sheet; the map stays put
+            m.on('click', () => { opener = m.getElement(); openSheet(s); });  // full-screen sheet; the map stays put
         } else {
             // pan popups clear of the zoom / layer / unit controls along the top
             m.bindPopup(() => popupHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
                                              autoPanPaddingBottomRight: [10, 10]});
             m.on('popupopen', e => {
+                const el = e.popup.getElement();
+                opener = opener || document.activeElement;  // the marker (Enter or click), unless the table opened it
+                el.setAttribute('role', 'dialog');
+                el.setAttribute('aria-labelledby', `bt-name-${s.id}`);
+                focusCard(el);
                 countOpen(s);
                 e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.textContent = relAge(Number(el.dataset.t)); });
                 if (has) openChart(s.id);
+            });
+            // closed with Escape or ✕ (focus was in the card): back to the opener; closed by clicking
+            // elsewhere on the map: leave focus where the click put it
+            m.on('popupclose', e => {
+                const a = document.activeElement;
+                if (a === document.body || e.popup.getElement().contains(a)) returnFocus();
+                else opener = null;
             });
         }
         markers[s.id] = m;
