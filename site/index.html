@@ -164,10 +164,15 @@ body.imperial .bt-cbar-ticks.c { display: none; }
 body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-mk .pulse { transform-box: fill-box; transform-origin: center; animation: bt-pulse 1.8s ease-out infinite; }
 @keyframes bt-pulse { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
+.bt-mk .pulse.r2 { animation-delay: 0.45s; }  /* flood rings: two or three waves, one after another */
+.bt-mk .pulse.r3 { animation-delay: 0.9s; }
 /* reduced motion: the ring holds still instead of pulsing, so a heatwave still has a cue besides color */
 .bt-cbar-key { display: none; }
 @media (prefers-reduced-motion: reduce) {
     .bt-mk .pulse { animation: none; transform: scale(1.5); stroke-width: 0.8; }
+    /* still flood rings, nested with clear gaps; thinner as they grow, so all draw about the same width */
+    .bt-mk .pulse.r2 { transform: scale(2); stroke-width: 0.65; }
+    .bt-mk .pulse.r3 { transform: scale(2.5); stroke-width: 0.52; }
     /* the still ring needs explaining, since it doesn't draw the eye the way the pulse does */
     .bt-cbar-key { display: block; border-top: 1px solid #e5e5e5; margin-top: 4px; padding: 5px 0 2px; }
     .bt-cbar-key div { display: flex; align-items: center; gap: 7px; line-height: 26px; }
@@ -197,6 +202,30 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-imperial { display: none; }
 body.imperial .bt-metric { display: none; }
 body.imperial .bt-imperial { display: inline; }
+/* Temperature / Sea level switch (Leaflet control, above the color bar), styled like the units switch */
+.bt-mode { display: flex; width: 240px; background: white; overflow: hidden; }
+.bt-mode button {
+    flex: 1; border: none; background: white; padding: 7px 0; cursor: pointer; font-family: inherit;
+    font-size: 12px; font-weight: 700; color: #666;
+}
+.bt-mode button + button { border-left: 1px solid #ccc; }
+.bt-mode button:hover { background: #f4f4f4; }
+.bt-mode button.on { background: var(--ink); color: white; }
+.bt-mode button:disabled { color: #bbb; cursor: not-allowed; background: white; }
+.bt-mode button:focus-visible, .bt-units button:focus-visible { outline: 2px solid var(--fandango); outline-offset: -2px; }
+/* sea level view: key for the flood rings, the flood pills, and the table's flood column */
+.bt-flood-key { border-top: 1px solid #e5e5e5; margin-top: 4px; padding: 5px 0 2px; }
+.bt-flood-key div { display: flex; align-items: center; gap: 6px; line-height: 44px; }
+.bt-flood-key .bt-mk { width: 44px; height: 44px; filter: drop-shadow(0 0 0.6px rgba(0,0,0,0.6)); }
+.bt-pill.flood-minor { background: #F5C400; color: var(--ink); }
+.bt-pill.flood-moderate { background: #F07C1F; color: var(--ink); }
+.bt-pill.flood-major { background: var(--heatwave-red); color: white; }
+.bt-level { font-size: 13px; color: #374151; margin-top: 10px; }
+.bt-level b { font-weight: 700; color: var(--ink); }
+.bt-stations td.c-anom.flood-minor { color: #F5C400; font-weight: 700; }
+.bt-stations td.c-anom.flood-moderate { color: #FF9A4D; font-weight: 700; }
+.bt-stations td.c-anom.flood-major { color: #FF5A6A; font-weight: 700; }
+body.sea .bt-filter { display: none; }  /* only tide stations measure sea level */
 
 /* popup (desktop bubble and phone card share this content) */
 .bt-popup { width: 460px; font-family: 'Montserrat', 'Helvetica Neue', sans-serif; color: var(--ink); }
@@ -246,6 +275,7 @@ body.imperial .bt-imperial { display: inline; }
 }
 .bt-sheet .bt-popup { width: auto; padding: 0 20px 22px; margin-top: -8px; }
 .bt-sheet .bt-chart { width: 100%; }
+.bt-chart.bt-chart-diff { height: 145px; margin-top: 2px; }  /* sea level card: measured minus predicted, under the main chart */
 .bt-chart-sum { font-size: 12px; color: #4B5563; line-height: 1.55; margin: 12px 0 0; }
 .bt-chart-sum .bt-metric, .bt-chart-sum .bt-imperial, .bt-chart-sum .nw { white-space: nowrap; }  /* keep each value and date whole */
 .bt-chart-msg { position: absolute; inset: 0; pointer-events: none;  /* let clicks and hovers reach the chart */ display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
@@ -263,6 +293,8 @@ body.imperial .bt-imperial { display: inline; }
     .bt-cbar { width: 178px; padding: 5px 8px 3px; font-size: 9px; }
     .bt-cbar-title { font-size: 11px; white-space: nowrap; }  /* one line */
     .bt-units { width: 110px; }
+    .bt-mode { width: 194px; }
+    .bt-mode button { font-size: 11px; padding: 6px 0; }
     .bt-units button { font-size: 10px; }
     .bt-page-header h1 { font-size: 22px; }
     .bt-page-header p { font-size: 12px; margin-top: 3px; }
@@ -334,19 +366,40 @@ Chart.defaults.font.family = "'Montserrat', 'Helvetica Neue', sans-serif";
 const THERMAL = ['#042333', '#092f59', '#1f3487', '#4635a0', '#634198', '#7c4d90', '#95568a', '#b15f82',
                  '#cc6873', '#e4735f', '#f5864a', '#fba13d', '#fabe3f', '#f4dc4b', '#e8fa5b'];
 const TEMP_RANGE_C = [(40 - 32) * 5 / 9, (80 - 32) * 5 / 9];
-function tempColor(c) {
-    const t = Math.min(Math.max((c - TEMP_RANGE_C[0]) / (TEMP_RANGE_C[1] - TEMP_RANGE_C[0]), 0), 1) * (THERMAL.length - 1);
-    const i = Math.min(Math.floor(t), THERMAL.length - 2), f = t - i;
-    const rgb = k => [1, 3, 5].map(j => parseInt(THERMAL[k].slice(j, j + 2), 16));
+// color at t (0-1, clamped) along a list of hex colors
+function ramp(colors, t) {
+    t = Math.min(Math.max(t, 0), 1) * (colors.length - 1);
+    const i = Math.min(Math.floor(t), colors.length - 2), f = t - i;
+    const rgb = k => [1, 3, 5].map(j => parseInt(colors[k].slice(j, j + 2), 16));
     const [a, b] = [rgb(i), rgb(i + 1)];
     return `rgb(${a.map((v, j) => Math.round(v + (b[j] - v) * f)).join(',')})`;
 }
+const tempColor = c => ramp(THERMAL, (c - TEMP_RANGE_C[0]) / (TEMP_RANGE_C[1] - TEMP_RANGE_C[0]));
+// sea level view (tide stations): the water above or below the predicted tide, on a fixed ±3 ft scale.
+// The hue changes along it (purple, blue, cyan below; yellow, orange, red above) so a marker's shade can be
+// matched to a value; blue against yellow-red stays apart with red-green color blindness.
+const SEA_COLORS = ['#3f007d', '#5e3c99', '#3a6fc4', '#2ba3d6', '#8fd8e8', '#f7f7f7',
+                    '#fff2a8', '#fdd23c', '#fb9a29', '#e8492b', '#a50f15'];
+const SEA_RANGE_M = 3 / 3.28084;
+const seaColor = m => ramp(SEA_COLORS, (m + SEA_RANGE_M) / (2 * SEA_RANGE_M));
+const FT = 3.28084;
+// National Weather Service coastal flood levels: [label, ring color, chart line color (darker, to show on white)];
+// the rings also count up (1, 2, 3), so the level doesn't rest on color alone
+const LEVELS = ['minor', 'moderate', 'major'];
+// Worded as the water reaching a level at the gauge, not as flooding: what floods nearby depends on the place and the waves.
+const FLOOD = {minor: ['Minor flood level reached', '#F5C400', '#A68400'], moderate: ['Moderate flood level reached', '#F07C1F', '#B85400'],
+               major: ['Major flood level reached', '#D7263D', '#B0182B']};
+const SEA_WINDOWS = {day: ['Day', 1], d3: ['3 days', 3], week: ['Week', 7], d30: ['30 days', 30]};
+const SEA_DEFAULT_WINDOW = 'd3';
 
 // ---- state ----------------------------------------------------------------
 let latest = null;
 const stationData = {};   // id -> fetched stations/{id}.json
 const chartState = {};    // id -> {win, clim}
 const charts = {};        // id -> Chart instance
+let mode = 'temp';        // what the map shows: 'temp' or 'sea'
+let seaLatest = null, sea = null;  // sealevel.json, and its stations by id
+const seaData = {}, seaState = {}, seaCharts = {}, seaDiffCharts = {};  // the sea level card's series, window and charts, by id
 const imperial = () => document.body.classList.contains('imperial');
 const conv = c => (c == null ? null : imperial() ? c * 9 / 5 + 32 : c);
 const unit = () => (imperial() ? '°F' : '°C');
@@ -357,6 +410,18 @@ function bothUnits(c, signed = false) {
     const s = v => (signed && v >= 0 ? '+' : '') + v.toFixed(1);
     return `<span class="bt-metric">${s(c)} °C</span><span class="bt-imperial">${s(f)} °F</span>`;
 }
+// lengths (metres) in both units, like temperatures: 2 decimals in m, 1 in ft
+function bothLengths(m, signed = false) {
+    const s = (v, n) => (signed && v >= 0 ? '+' : '') + v.toFixed(n);
+    return `<span class="bt-metric">${s(m, 2)} m</span><span class="bt-imperial">${s(m * FT, 1)} ft</span>`;
+}
+function bothLengthRange(a, b) {
+    return `<span class="bt-metric">${a.toFixed(2)}–${b.toFixed(2)} m</span>`
+         + `<span class="bt-imperial">${(a * FT).toFixed(1)}–${(b * FT).toFixed(1)} ft</span>`;
+}
+const plainLength = m => `${(m * FT).toFixed(1)} ft / ${m.toFixed(2)} m`;  // for marker names and tooltips
+const convLen = m => (imperial() ? m * FT : m);
+const lenUnit = () => (imperial() ? 'ft' : 'm');
 // how long ago the last temperature was, against the viewer's clock
 function relAge(ms) {
     const m = Math.round((Date.now() - ms) / 6e4), h = Math.round(m / 60), d = Math.round(m / 1440);
@@ -592,8 +657,245 @@ function btSetUnits(u) {
         b.classList.toggle('on', b.dataset.unit === u);
         b.setAttribute('aria-pressed', b.dataset.unit === u);
     });
-    document.getElementById('bt-announce').textContent = `Showing temperatures in degrees ${isImp ? 'Fahrenheit' : 'Celsius'}`;
+    document.getElementById('bt-announce').textContent = mode === 'sea' ? `Showing sea level in ${isImp ? 'feet' : 'meters'}`
+                                                       : `Showing temperatures in degrees ${isImp ? 'Fahrenheit' : 'Celsius'}`;
     Object.keys(charts).forEach(id => { if (document.getElementById(`bt-canvas-${id}`)) drawChart(id); });
+    Object.keys(seaCharts).forEach(id => { if (document.getElementById(`bt-seacanvas-${id}`)) drawSeaChart(id); });
+}
+// Temperature or Sea level: the markers, color bar, units, station table and cards all follow
+function btSetMode(m) {
+    if (m === 'sea' && !sea) return;
+    mode = m;
+    document.body.classList.toggle('sea', m === 'sea');
+    document.querySelectorAll('.bt-mode button').forEach(b => {
+        b.classList.toggle('on', b.dataset.mode === m);
+        b.setAttribute('aria-pressed', b.dataset.mode === m);
+    });
+    map.closePopup();
+    renderCbar();
+    const [f, c] = m === 'sea' ? ['ft', 'm'] : ['°F', '°C'];
+    document.querySelector('.bt-units [data-unit="f"]').textContent = f;
+    document.querySelector('.bt-units [data-unit="c"]').textContent = c;
+    stationList.forEach(placeMarker);
+    if (listDiv) listDiv.refresh();
+    document.getElementById('map').setAttribute('aria-label', m === 'sea' ? 'Map of sea level at NOAA tide stations' : 'Map of water temperature stations');
+    document.getElementById('bt-announce').textContent = m === 'sea' ? 'Showing sea level at NOAA tide stations'
+                                                                     : 'Showing water temperature at all stations';
+}
+
+// ---- sea level card -------------------------------------------------------
+// A tide station's card in the sea level view: the water above or below the predicted tide (past hour),
+// the water level against NOAA's flood levels, and a chart of the measured water against the tide.
+function seaPopupHtml(s) {
+    const e = sea[s.id] || {};
+    const head = `<h2 class="bt-name" id="bt-name-${s.id}" tabindex="-1">${s.name}</h2>`
+               + `<div class="bt-sub">Tide station · NOAA CO-OPS ${s.coops}${place(s) ? ` · ${place(s)}` : ''}</div>`;
+    const links = `<span>Data: ${link(`https://tidesandcurrents.noaa.gov/waterlevels.html?id=${s.coops}`, `CO-OPS ${s.coops}`)}`
+                + ` · ${link('https://tidesandcurrents.noaa.gov/inundationdb/', 'NOAA Coastal Inundation Dashboard')}</span>`;
+    if (e.excess_m == null) {  // no readings, or none recent enough to describe the water now (sealevel.py's STALE_HOURS)
+        const why = e.time_ms ? `No sea level reading in the past ${seaLatest.stale_hours} hours; the last was `
+                                + `${pacific(e.time_ms, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'})}.`
+                              : `No sea level reported in the past ${seaLatest.recent_days} days.`;
+        return `<div class="bt-popup">${head}<div class="bt-sec bt-note">${why}</div><div class="bt-foot">${links}</div></div>`;
+    }
+    const when = pacific(e.time_ms, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
+    const swatch = `<svg class="bt-swatch" width="36" height="36" viewBox="0 0 24 24">`
+        + shape('tide', 11, `fill="${seaColor(e.excess_m)}" stroke="rgba(18,24,38,0.35)" stroke-width="1" stroke-linejoin="round"`) + `</svg>`;
+    const lv = e.flood_levels_m, next = LEVELS.find(k => lv[k] != null && e.level_m < lv[k]);
+    const pill = e.flood ? `<span class="bt-pill flood-${e.flood}">${FLOOD[e.flood][0]}</span>`
+               : `<span class="bt-pill">${Object.keys(lv).length ? 'Below flood level' : 'No NWS flood levels for this station'}</span>`;
+    const seg = Object.entries(SEA_WINDOWS).map(([k, [label]]) =>
+        `<button class="bt-window${k === SEA_DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" aria-pressed="${k === SEA_DEFAULT_WINDOW}" `
+        + `onclick="btSeaWindow('${s.id}', '${k}', this)">${label}</button>`).join('');
+    return `<div class="bt-popup">${head}`
+        + `<div class="bt-sec bt-now">${swatch}<div><div class="bt-temp">${bothLengths(Math.abs(e.excess_m))}</div>`
+        + `<div class="bt-when">${e.excess_m >= 0 ? 'above' : 'below'} the predicted tide (past hour) · `
+        + `<span class="bt-age" data-t="${e.time_ms}">${relAge(e.time_ms)}</span> · ${when}</div></div></div>`
+        + `<div class="bt-sec">${pill}<div class="bt-level">Water level <b>${bothLengths(e.level_m)}</b> above the lowest tides (MLLW)`
+        + (next ? `, ${bothLengths(lv[next] - e.level_m)} below the ${next} flood level` : '') + `.</div>`
+        + (e.flood ? `<div class="bt-level bt-note">Measured at the gauge; flooding nearby depends on local conditions and waves. `
+                     + `Automated, not an official warning: see ${link('https://www.weather.gov/alerts', 'National Weather Service alerts')}.</div>` : '')
+        + `</div>`
+        + `<div class="bt-sec"><div class="bt-seg" role="group" aria-label="Chart time span">${seg}</div>`
+        + `<div class="bt-chart"><canvas id="bt-seacanvas-${s.id}" role="img" aria-label="Sea level chart, described below"></canvas>`
+        + `<div class="bt-chart-msg" id="bt-seamsg-${s.id}">Loading…</div></div>`
+        + `<div class="bt-chart bt-chart-diff"><canvas id="bt-seadiff-${s.id}" role="img" `
+        + `aria-label="Chart of the water above or below the predicted tide, described below"></canvas></div>`
+        + `<p class="bt-chart-sum" id="bt-seasum-${s.id}" aria-live="polite"></p></div>`
+        + `<div class="bt-foot">${links}`
+        + (Object.keys(lv).length ? '<br>Flood levels: National Weather Service' : '') + `</div></div>`;
+}
+
+// shades the chart to the right of now, where only the predicted tide is drawn
+const futureShade = {
+    id: 'futureShade',
+    beforeDatasetsDraw(c) {
+        const {ctx, chartArea: a, scales: {x}} = c, px = x.getPixelForValue(Date.now());
+        if (px >= a.right) return;
+        ctx.save();
+        ctx.fillStyle = '#F3F4F6';
+        ctx.fillRect(px, a.top, a.right - px, a.bottom - a.top);
+        ctx.fillStyle = '#6B7280';
+        ctx.font = "11px 'Montserrat', 'Helvetica Neue', sans-serif";
+        ctx.fillText('Ahead', px + 5, a.bottom - 6);  // at the bottom, clear of the flood level lines
+        ctx.restore();
+    },
+};
+
+function drawSeaChart(id) {
+    const d = seaData[id], st = seaState[id], e = sea[id];
+    const canvas = document.getElementById(`bt-seacanvas-${id}`);
+    if (!d || !canvas) return;
+    if (seaCharts[id]) seaCharts[id].destroy();
+    if (seaDiffCharts[id]) seaDiffCharts[id].destroy();
+    const days = SEA_WINDOWS[st.win][1], now = Date.now();
+    const t0 = now - days * 864e5, t1 = now + (days === 1 ? 12 : 24) * 3.6e6;  // and the predicted tide ahead
+    const pts = (ts, vs) => ts.map((t, i) => ({x: t, y: convLen(vs[i])})).filter(p => p.x >= t0 && p.x <= t1);
+    const obs = pts(d.obs_t, d.obs), pred = pts(d.pred_t, d.pred);
+    // de-tided: measured minus predicted at each reading, drawn in the panel underneath
+    const predAt = new Map(d.pred_t.map((t, i) => [t, d.pred[i]]));
+    const diff = d.obs_t.map((t, i) => (predAt.has(t) ? {x: t, y: convLen(d.obs[i] - predAt.get(t))} : null))
+                        .filter(p => p && p.x >= t0 && p.x <= t1);
+    const avg = excessAverage(d).filter(p => p.x >= t0 && p.x <= t1).map(p => ({x: p.x, y: convLen(p.y)}));
+    // a flood level is drawn when the water came, or is predicted to come, within 0.5 m of it
+    const top = Math.max(...obs.concat(pred).map(p => p.y));
+    const floods = LEVELS.filter(k => e.flood_levels_m[k] != null && top >= convLen(e.flood_levels_m[k] - 0.5)).map(k => ({
+        label: `${k[0].toUpperCase() + k.slice(1)} flood level`, data: [{x: t0, y: convLen(e.flood_levels_m[k])}, {x: t1, y: convLen(e.flood_levels_m[k])}],
+        borderColor: FLOOD[k][2], borderDash: [2, 3], borderWidth: 1.5, pointRadius: 0, fill: false, order: 2, pointStyle: 'line'}));
+    const narrow = window.innerWidth < 540;
+    const step = days === 1 ? 6 * 3.6e6 : days === 3 ? 864e5 : days === 7 ? (narrow ? 2 : 1) * 864e5 : (narrow ? 10 : 5) * 864e5;
+    const tickLabel = v => (days === 1 ? pacific(v, {hour: 'numeric'}) : pacific(v, {month: 'short', day: 'numeric'}));
+    // the two panels share the time axis; their y axes get the same width so the times line up
+    const seaX = {type: 'linear', min: t0, max: t1, grid: {display: false},
+                  afterBuildTicks: axis => { axis.ticks = pacificTicks(t0, t1, step); }};
+    const seaY = {grid: {color: '#eee'}, ticks: {color: '#555', font: {size: 11}}, afterFit: axis => { axis.width = 58; }};
+    const seaTooltip = {callbacks: {
+        title: items => pacific(items[0].parsed.x, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}),
+        label: item => `${item.dataset.label}: ${item.parsed.y.toFixed(imperial() ? 1 : 2)} ${lenUnit()}`}};
+    document.getElementById(`bt-seamsg-${id}`).textContent = obs.length ? '' : `No data in the past ${SEA_WINDOWS[st.win][0].toLowerCase()}`;
+    const sum = document.getElementById(`bt-seasum-${id}`), text = seaSummary(id, t0, days);
+    if (sum._text !== text) { sum.innerHTML = text; sum._text = text; }  // not read out again on a unit switch
+    seaCharts[id] = new Chart(canvas, {
+        type: 'line',
+        data: {datasets: [
+            {label: 'Measured', data: obs, borderColor: COLORS.fandango, borderWidth: 1.6, pointRadius: 0,
+             spanGaps: 3 * 3.6e6, fill: false, order: 0, pointStyle: 'line'},
+            {label: 'Predicted tide', data: pred, borderColor: '#8A8F98', borderWidth: 1,
+             pointRadius: 0, fill: false, order: 1, pointStyle: 'line'},
+            ...floods,
+        ]},
+        plugins: [futureShade],
+        options: {
+            animation: false, responsive: true, maintainAspectRatio: false,
+            interaction: {mode: 'nearest', axis: 'x', intersect: false},
+            scales: {
+                // dates only on the panel underneath, which shares this time axis
+                x: Object.assign({}, seaX, {ticks: {display: false}}),
+                y: Object.assign({title: {display: true, text: `Water level (${lenUnit()} above MLLW)`, color: '#555', font: {size: 12}}}, seaY),
+            },
+            plugins: {
+                legend: {position: 'top', labels: {usePointStyle: true, boxWidth: 14, font: {size: 11}, color: '#444'}},
+                tooltip: seaTooltip,
+            },
+        },
+    });
+    seaDiffCharts[id] = new Chart(document.getElementById(`bt-seadiff-${id}`), {
+        type: 'line',
+        data: {datasets: [
+            {label: '25-hour average', data: avg, borderColor: '#0B3A4A', borderWidth: 2.2, pointRadius: 0, spanGaps: 3 * 3.6e6,
+             fill: false, order: 0, pointStyle: 'line'},
+            {label: 'Measured − predicted', data: diff, borderColor: '#5BB3C9', borderWidth: 1, pointRadius: 0, spanGaps: 3 * 3.6e6,
+             fill: {target: {value: 0}, above: 'rgba(14,116,144,0.10)', below: 'rgba(14,116,144,0.10)'}, order: 1, pointStyle: 'line'},
+        ]},
+        plugins: [futureShade],
+        options: {
+            animation: false, responsive: true, maintainAspectRatio: false,
+            interaction: {mode: 'nearest', axis: 'x', intersect: false},
+            scales: {
+                x: Object.assign({}, seaX, {ticks: {callback: tickLabel, color: '#555', font: {size: 11}, maxRotation: 0}}),
+                // zero (the predicted tide) always in view, drawn darker
+                y: Object.assign({title: {display: true, text: `vs. tide (${lenUnit()})`, color: '#555', font: {size: 12}},
+                                  suggestedMin: 0, suggestedMax: 0}, seaY,
+                                 {grid: {color: c => (c.tick.value === 0 ? '#9CA3AF' : '#eee')}}),
+            },
+            plugins: {legend: {position: 'top', labels: {usePointStyle: true, boxWidth: 14, font: {size: 11}, color: '#444'}},
+                      tooltip: seaTooltip},
+        },
+    });
+}
+
+// Trailing 25-hour average of measured minus predicted (metres), at each reading with a full 25 hours behind it
+// (at least 80% of the readings present). A 25-hour mean spans about two tidal cycles, so it smooths out what's
+// left of the tide in the difference; it's the simplest form of the Godin filter (Godin 1972, The Analysis of
+// Tides; see Thomson & Emery 2014, Data Analysis Methods in Physical Oceanography). It lags by about 12 hours.
+function excessAverage(d) {
+    const predAt = new Map(d.pred_t.map((t, i) => [t, d.pred[i]]));
+    const ex = d.obs_t.map((t, i) => [t, predAt.has(t) ? d.obs[i] - predAt.get(t) : null]).filter(([, v]) => v != null);
+    const step = ex.length > 1 ? ex[1][0] - ex[0][0] : 18e5;  // the series' spacing (30 minutes)
+    const W = 25 * 3.6e6, full = 0.8 * W / step, out = [];
+    let lo = 0, sum = 0;
+    ex.forEach(([t, v], i) => {
+        sum += v;
+        while (ex[lo][0] <= t - W) sum -= ex[lo++][1];
+        if (t - W >= ex[0][0] && i - lo + 1 >= full) out.push({x: t, y: sum / (i - lo + 1)});
+    });
+    return out;
+}
+// the sea level chart's text alternative: the water against the predicted tide over the window, its highest
+// level against the flood levels, and the highest predicted tide in the next 24 hours
+function seaSummary(id, t0, days) {
+    const d = seaData[id], e = sea[id], now = Date.now();
+    const span = days === 1 ? 'Past 24 hours' : `Past ${days} days`;
+    const when = t => `<span class="nw">${pacific(t, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'})}</span>`;
+    const pred = new Map(d.pred_t.map((t, i) => [t, d.pred[i]]));
+    const idx = d.obs_t.map((t, i) => i).filter(i => d.obs_t[i] >= t0);
+    if (!idx.length) return `No sea level readings in the ${span.toLowerCase()}.`;
+    const parts = [];
+    const ex = idx.filter(i => pred.has(d.obs_t[i])).map(i => d.obs[i] - pred.get(d.obs_t[i]));
+    if (ex.length) {
+        const lo = Math.min(...ex), hi = Math.max(...ex), side = v => `${bothLengths(Math.abs(v))} ${v >= 0 ? 'above' : 'below'}`;
+        parts.push(lo >= 0 ? `${span}: the water was ${bothLengthRange(lo, hi)} above the predicted tide.`
+                 : hi <= 0 ? `${span}: the water was ${bothLengthRange(-hi, -lo)} below the predicted tide.`
+                 : `${span}: the water ranged from ${side(lo)} to ${side(hi)} the predicted tide.`);
+    }
+    const top = idx.reduce((a, i) => (d.obs[i] > d.obs[a] ? i : a)), lv = e.flood_levels_m;
+    const hit = LEVELS.filter(k => lv[k] != null && d.obs[top] >= lv[k]).pop(), next = LEVELS.find(k => lv[k] != null && d.obs[top] < lv[k]);
+    parts.push(`Highest water level: ${bothLengths(d.obs[top])} above the lowest tides (MLLW), ${when(d.obs_t[top])}`
+               + (hit ? `, reaching the ${hit} flood level` : next ? `, ${bothLengths(lv[next] - d.obs[top])} below the ${next} flood level` : '') + '.');
+    const avg = excessAverage(d);
+    if (avg.length) {  // the 25-hour average now, and against a week earlier when there's one
+        const last = avg[avg.length - 1], week = avg.filter(p => p.x <= last.x - 7 * 864e5).pop();
+        const change = week ? Math.abs(last.y - week.y) * FT < 0.05 ? ', about the same as a week ago'
+                            : `, ${last.y > week.y ? 'up' : 'down'} ${bothLengths(Math.abs(last.y - week.y))} from a week ago` : '';
+        parts.push(`25-hour average: ${bothLengths(Math.abs(last.y))} ${last.y >= 0 ? 'above' : 'below'} the predicted tide${change}.`);
+    }
+    const ahead = d.pred_t.map((t, i) => i).filter(i => d.pred_t[i] > now && d.pred_t[i] <= now + 864e5);
+    if (ahead.length) {
+        const p = ahead.reduce((a, i) => (d.pred[i] > d.pred[a] ? i : a));
+        parts.push(`Highest predicted tide in the next 24 hours: ${bothLengths(d.pred[p])}, ${when(d.pred_t[p])}.`);
+    }
+    return parts.join(' ');
+}
+
+async function openSeaChart(id) {
+    seaState[id] = {win: SEA_DEFAULT_WINDOW};
+    if (!seaData[id]) {
+        try {
+            seaData[id] = await (await fetch(`data/sealevel/${id}.json`, {cache: 'no-cache'})).json();
+        } catch (e) {
+            document.getElementById(`bt-seamsg-${id}`).textContent = 'Could not load data';
+            return;
+        }
+    }
+    drawSeaChart(id);
+}
+function btSeaWindow(id, win, btn) {
+    seaState[id].win = win;
+    btn.parentElement.querySelectorAll('.bt-window').forEach(b => {
+        b.classList.toggle('on', b === btn);
+        b.setAttribute('aria-pressed', b === btn);
+    });
+    drawSeaChart(id);
 }
 
 // ---- map ------------------------------------------------------------------
@@ -604,23 +906,56 @@ const baseLayers = {
     'Satellite': L.tileLayer(esri('World_Imagery'), {attribution: 'Esri World Imagery', maxZoom: 19}),
 };
 const map = L.map('map', {layers: [baseLayers['Roads']], zoomControl: false}).setView([36.6, -121.5], 6);
-// top right: color bar, then °F/°C toggle; bottom right: zoom buttons above the base-map choice
+// top right: Temperature / Sea level switch, color bar, then units toggle; bottom right: zoom buttons above the base-map choice
+const ModeCtrl = L.Control.extend({
+    options: {position: 'topright'},
+    onAdd: () => {
+        const div = L.DomUtil.create('div', 'bt-mode leaflet-bar leaflet-control bt-font');
+        div.setAttribute('role', 'group');
+        div.setAttribute('aria-label', 'Map shows');
+        div.innerHTML = '<button data-mode="temp" class="on" aria-pressed="true" onclick="btSetMode(\'temp\')">Temperature</button>'
+                      + '<button data-mode="sea" aria-pressed="false" onclick="btSetMode(\'sea\')">Sea level</button>';
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+    },
+});
+map.addControl(new ModeCtrl());
 // color bar for the marker fill, ticked in whichever unit is showing
+let cbarDiv = null;
+function renderCbar() {
+    const ticks = (vals, pos, cls, sign) => `<div class="bt-cbar-ticks ${cls}">`
+        + vals.map(([v, at]) => `<span style="left:${pos(at)}">${sign && v > 0 ? '+' : ''}${v}</span>`).join('') + `</div>`;
+    if (mode === 'sea') {
+        const R = SEA_RANGE_M, pos = m => `${(100 * (m + R) / (2 * R)).toFixed(1)}%`;
+        // the flood rings, still, in the key: one, two or three
+        const ring = k => `<svg class="bt-mk" aria-hidden="true" width="44" height="44" viewBox="-10 -10 44 44">`
+            + [12, 16, 20].slice(0, LEVELS.indexOf(k) + 1).map(r =>
+                shape('tide', r, `fill="none" stroke="${FLOOD[k][1]}" stroke-width="1.5" stroke-linejoin="round"`)).join('')
+            + shape('tide', 8, `fill="${seaColor(0.5)}" stroke="${FLOOD[k][1]}" stroke-width="2" stroke-linejoin="round"`) + `</svg>`;
+        cbarDiv.innerHTML = `<div class="bt-cbar-title">Sea level vs. predicted tide `
+            + `<span class="bt-metric">(m)</span><span class="bt-imperial">(ft)</span></div>`
+            + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${SEA_COLORS.join(', ')});"></div>`
+            + ticks([-0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9].map(m => [m, m]), pos, 'c', true)
+            + ticks([-3, -2, -1, 0, 1, 2, 3].map(f => [f, f / FT]), pos, 'f', true)
+            + `<div class="bt-flood-key">` + LEVELS.map(k => `<div>${ring(k)}${FLOOD[k][0]}</div>`).join('') + `</div>`;
+        return;
+    }
+    const [c0, c1] = TEMP_RANGE_C, pos = c => `${(100 * (c - c0) / (c1 - c0)).toFixed(1)}%`;
+    cbarDiv.innerHTML = `<div class="bt-cbar-title">Water temperature `
+        + `<span class="bt-metric">(°C)</span><span class="bt-imperial">(°F)</span></div>`
+        + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${THERMAL.join(', ')});"></div>`
+        + ticks([5, 10, 15, 20, 25].map(c => [c, c]), pos, 'c')
+        + ticks([40, 50, 60, 70, 80].map(f => [f, (f - 32) * 5 / 9]), pos, 'f')
+        // key for the still heatwave ring, shown only when motion is reduced
+        + `<div class="bt-cbar-key"><div>${markerHtml({type: 'cdip', status: 'normal', last_c: 17})}No heatwave</div>`
+        + `<div>${markerHtml({type: 'cdip', status: 'heatwave', last_c: 17})}Suspected marine heatwave</div></div>`;
+}
 const ColorbarCtrl = L.Control.extend({
     options: {position: 'topright'},
     onAdd: () => {
-        const div = L.DomUtil.create('div', 'bt-cbar leaflet-bar bt-font');
-        const [c0, c1] = TEMP_RANGE_C, pos = c => `${(100 * (c - c0) / (c1 - c0)).toFixed(1)}%`;
-        const ticksC = [5, 10, 15, 20, 25].map(c => `<span style="left:${pos(c)}">${c}</span>`).join('');
-        const ticksF = [40, 50, 60, 70, 80].map(f => `<span style="left:${pos((f - 32) * 5 / 9)}">${f}</span>`).join('');
-        div.innerHTML = `<div class="bt-cbar-title">Water temperature `
-            + `<span class="bt-metric">(°C)</span><span class="bt-imperial">(°F)</span></div>`
-            + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${THERMAL.join(', ')});"></div>`
-            + `<div class="bt-cbar-ticks c">${ticksC}</div><div class="bt-cbar-ticks f">${ticksF}</div>`
-            // key for the still heatwave ring, shown only when motion is reduced
-            + `<div class="bt-cbar-key"><div>${markerHtml({type: 'cdip', status: 'normal', last_c: 17})}No heatwave</div>`
-            + `<div>${markerHtml({type: 'cdip', status: 'heatwave', last_c: 17})}Suspected marine heatwave</div></div>`;
-        return div;
+        cbarDiv = L.DomUtil.create('div', 'bt-cbar leaflet-bar bt-font');
+        renderCbar();
+        return cbarDiv;
     },
 });
 map.addControl(new ColorbarCtrl());
@@ -630,7 +965,7 @@ const UnitCtrl = L.Control.extend({
     onAdd: () => {
         const div = L.DomUtil.create('div', 'bt-units leaflet-bar leaflet-control bt-font');
         div.setAttribute('role', 'group');
-        div.setAttribute('aria-label', 'Temperature units');
+        div.setAttribute('aria-label', 'Units');
         div.innerHTML = '<button data-unit="f" class="on" aria-pressed="true" onclick="btSetUnits(\'f\')">°F</button>'
                       + '<button data-unit="c" aria-pressed="false" onclick="btSetUnits(\'c\')">°C</button>';
         L.DomEvent.disableClickPropagation(div);
@@ -658,7 +993,8 @@ const markers = {};
 let stationList = [];
 // The card opens over the whole window (the sheet) when a popup on the map wouldn't fit: on phones, in
 // short windows, and when the page is zoomed in. Decided each time, so zooming after loading works.
-const useSheet = () => window.innerWidth <= 540 || document.getElementById('map').clientHeight < 680;
+// The sea level card, with its second chart panel, needs more room than the temperature card.
+const useSheet = () => window.innerWidth <= 540 || document.getElementById('map').clientHeight < (mode === 'sea' ? 950 : 680);
 
 // The sheet: the station's details in a card over the window, with a Close button pinned at the top.
 // The browser's back button closes it too.
@@ -684,14 +1020,14 @@ function openSheet(s) {
     div.setAttribute('aria-modal', 'true');
     div.setAttribute('aria-labelledby', `bt-name-${s.id}`);
     div.innerHTML = `<div class="bt-sheet-card"><div class="bt-sheet-bar">`
-                  + `<button class="bt-sheet-close" onclick="history.back()">✕ Close</button></div>${popupHtml(s)}</div>`;
+                  + `<button class="bt-sheet-close" onclick="history.back()">✕ Close</button></div>${cardHtml(s)}</div>`;
     div.onclick = e => { if (e.target === div) history.back(); };  // tap outside the card
     document.body.appendChild(div);
     BEHIND_SHEET.forEach(q => { document.querySelector(q).inert = true; });
     focusCard(div);
     history.pushState({sheet: s.id}, '');
     countOpen(s);
-    if (s.last_c != null) openChart(s.id);
+    openCardChart(s);
 }
 function closeSheet(replacing) {
     const sheet = document.querySelector('.bt-sheet');
@@ -710,8 +1046,14 @@ document.addEventListener('keydown', e => {
 // GoatCounter event per station opened (which stations people look at); a no-op until its script loads
 function countOpen(s) {
     if (window.goatcounter && window.goatcounter.count) {
-        window.goatcounter.count({path: `station/${s.id}`, title: s.name, event: true});
+        window.goatcounter.count({path: `${mode === 'sea' ? 'sea' : 'station'}/${s.id}`, title: s.name, event: true});
     }
+}
+// the card for the view showing: temperature, or (tide stations) sea level
+const cardHtml = s => (mode === 'sea' ? seaPopupHtml(s) : popupHtml(s));
+function openCardChart(s) {
+    if (mode === 'sea') { if (sea[s.id] && sea[s.id].excess_m != null) openSeaChart(s.id); }
+    else if (s.last_c != null) openChart(s.id);
 }
 function openStation(id) {
     opener = document.activeElement;  // the table row's button
@@ -749,13 +1091,65 @@ function markerHtml(s, inList = false) {
     const size = inList ? 14 : 26;
     return `<svg class="bt-mk" aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24">${svg}</svg>`;
 }
+// sea level view marker (tide stations, square): the fill is the water above or below the predicted tide; flooding
+// adds pulsing rings, one, two or three (yellow, orange, red) for minor, moderate or major (still when motion is
+// reduced, like the heatwave ring); hollow when there's no reading. A white edge like the temperature markers,
+// in the flood color when flooding (as a heatwave turns the edge red).
+function seaMarkerHtml(s, inList = false) {
+    const e = (sea && sea[s.id]) || {}, r = 8, join = 'stroke-linejoin="round"';
+    const rings = e.flood && !inList ? LEVELS.indexOf(e.flood) + 1 : 0;
+    let svg = [1, 2, 3].slice(0, rings).map(n =>
+        shape('tide', r, `class="pulse r${n}" fill="none" stroke="${FLOOD[e.flood][1]}" stroke-width="2.5"`)).join('');
+    const edge = e.flood ? FLOOD[e.flood][1] : inList ? 'rgba(255,255,255,0.6)' : '#ffffff';
+    svg += e.excess_m != null
+        ? shape('tide', r, `fill="${seaColor(e.excess_m)}" stroke="${edge}" stroke-width="${e.flood ? 2 : 1.5}" ${join}`)
+        : shape('tide', r, `fill="none" stroke="${inList ? COLORS.noData : COLORS.noDataEdge}" stroke-width="2" ${join}`);
+    const size = inList ? 14 : 26;
+    return `<svg class="bt-mk" aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24">${svg}</svg>`;
+}
+const markerIcon = s => L.divIcon({className: 'bt-mk-wrap', iconSize: [28, 28], popupAnchor: [0, -8], tooltipAnchor: [10, 0],
+                                   html: mode === 'sea' ? seaMarkerHtml(s) : markerHtml(s)});
+// a marker's tooltip, and (with commas, which read better than '·') its name for screen readers
+function markerLabel(s) {
+    if (mode === 'sea') {
+        const e = (sea && sea[s.id]) || {};
+        if (e.excess_m == null) return e.time_ms ? `${s.name}: no current sea level reading · last reading ${relAge(e.time_ms)}`
+                                                 : `${s.name}: no sea level in the past ${seaLatest.recent_days} days`;
+        return `${s.name}: sea level ${plainLength(Math.abs(e.excess_m))} ${e.excess_m >= 0 ? 'above' : 'below'} the predicted tide`
+             + (Date.now() - e.time_ms > 3 * 3.6e6 ? ` · last reading ${relAge(e.time_ms)}` : '')
+             + (e.flood ? ` · ${FLOOD[e.flood][0]}` : '');
+    }
+    const has = s.last_c != null, old = has && Date.now() - s.last_time_ms > 864e5;  // over a day: say how old
+    return (has && !isStale(s) ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
+                                 + (old ? ` · last reading ${relAge(s.last_time_ms)}` : '')
+                               : `${s.name}: no water temperature in the past ${latest.stale_days} days`)
+         + (s.status === 'heatwave' ? ' · Suspected marine heatwave' : '');
+}
+function nameMarker(m, s) {
+    const el = m.getElement();
+    if (el) el.setAttribute('aria-label', `${TYPE_ONE[s.type]}, ${markerLabel(s).replace(/ · /g, ', ')}`);
+}
+// show the marker for the current view: in the sea level view only tide stations, recolored
+function placeMarker(s) {
+    const m = markers[s.id];
+    if (!m) return;
+    if (mode === 'sea' ? s.type !== 'tide' : hiddenTypes.has(s.type)) { map.removeLayer(m); return; }
+    m.setIcon(markerIcon(s));  // rebuilds the marker's element, so name it again
+    if (map.hasLayer(m)) nameMarker(m, s);
+    else m.addTo(map);  // named on 'add'
+}
+let listDiv = null;
 const ListCtrl = L.Control.extend({
     options: {position: 'topleft'},
     onAdd: () => {
         const div = L.DomUtil.create('div', 'bt-list bt-font collapsed');
-        // sort keys: the column headers; dir 1 is each column's natural order (north to south,
-        // A-Z, warmest first, largest anomaly first), -1 reverses it; no-data rows stay last
-        const order = {loc: s => -s.lat, name: s => s.name, temp: s => (isStale(s) ? null : -s.last_c), anom: s => -s.anom_c};
+        listDiv = div;
+        const seaOf = s => (sea && sea[s.id]) || {};
+        // sort keys: the column headers; dir 1 is each column's natural order (north to south, A-Z, warmest
+        // first, largest anomaly first, highest water first, worst flooding first), -1 reverses it; no-data rows stay last
+        const order = {loc: s => -s.lat, name: s => s.name, temp: s => (isStale(s) ? null : -s.last_c), anom: s => -s.anom_c,
+                       excess: s => (seaOf(s).excess_m == null ? null : -seaOf(s).excess_m),
+                       flood: s => (seaOf(s).excess_m == null ? null : -(LEVELS.indexOf(seaOf(s).flood) + 1))};
         let sortKey = 'loc', sortDir = 1;
         const compare = (a, b) => {
             const va = order[sortKey](a), vb = order[sortKey](b);
@@ -767,42 +1161,54 @@ const ListCtrl = L.Control.extend({
             `<button data-type="${t}" aria-pressed="true">${markerHtml({type: t, legend: true}, true)}${label}`
             + `<span class="n">${stationList.filter(s => s.type === t).length}</span></button>`).join('');
         // aria-sort of each column in its natural order (dir 1)
-        const naturalSort = {name: 'ascending', loc: 'descending', temp: 'descending', anom: 'descending'};
-        const th = (key, label, title) => `<th scope="col" class="c-${key}"><button class="bt-sort" data-sort="${key}" `
-                                          + `title="${title}">${label}</button></th>`;
+        const naturalSort = {name: 'ascending', loc: 'descending', temp: 'descending', anom: 'descending',
+                             excess: 'descending', flood: 'descending'};
+        // the last two columns, by view; the sea level ones take the temperature columns' widths
+        const COLS = {temp: [['temp', 'Temp', 'Sort by temperature', 'temp'], ['anom', 'Vs. Normal', 'Sort by difference from normal', 'anom']],
+                      sea: [['excess', 'Vs. Tide', 'Sort by difference from the predicted tide', 'temp'], ['flood', 'Flood', 'Sort by flood level', 'anom']]};
+        const CAPTION = {temp: 'Stations and their latest water temperature. Select a name to open its details.',
+                         sea: 'Tide stations and their latest sea level against the predicted tide. Select a name to open its details.'};
+        const th = (key, label, title, cls = key) => `<th scope="col" class="c-${cls}"><button class="bt-sort" data-sort="${key}" `
+                                                     + `title="${title}">${label}</button></th>`;
         div.innerHTML = `<button class="bt-list-head" aria-expanded="false"><span class="bt-list-title">STATIONS</span>`
                       + `<span class="bt-caret" aria-hidden="true">▾</span></button>`
                       + `<div class="bt-summary">`
                       + `<table class="bt-table">`
-                      + `<tr><th scope="row" class="bt-label">Stations reporting</th><td class="bt-value" id="bt-n-reporting">–</td></tr>`
-                      + `<tr><th scope="row" class="bt-label">Suspected marine heatwaves</th>`
+                      + `<tr><th scope="row" class="bt-label" id="bt-l-reporting">Stations reporting</th><td class="bt-value" id="bt-n-reporting">–</td></tr>`
+                      + `<tr><th scope="row" class="bt-label" id="bt-l-alert">Suspected marine heatwaves</th>`
                       + `<td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>`
                       + `<tr><th scope="row" class="bt-label">Updated</th><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>`
                       + `</table></div>`
                       + `<div class="bt-filter">${filters}<div class="bt-hw-note">`
                       + `${markerHtml({type: 'cdip', legend: true, status: 'heatwave'}, true)}Suspected marine heatwave</div></div>`
-                      + `<div class="bt-list-rows"><table class="bt-stations">`
-                      + `<caption class="bt-sr">Stations and their latest water temperature. Select a name to open its details.</caption>`
-                      + `<thead><tr><th scope="col" class="c-sym"><span class="bt-sr">Type</span></th>`
-                      + th('name', 'Name', 'Sort by name') + th('loc', 'Location', 'Sort by latitude')
-                      + th('temp', 'Temp', 'Sort by temperature') + th('anom', 'Vs. Normal', 'Sort by difference from normal')
-                      + `</tr></thead><tbody></tbody></table></div>`
+                      + `<div class="bt-list-rows"><table class="bt-stations"><caption class="bt-sr"></caption>`
+                      + `<thead></thead><tbody></tbody></table></div>`
                       + `<div class="bt-list-foot">Visits are counted anonymously with GoatCounter: no cookies, no personal data.</div>`;
+        const sr = text => `<span class="bt-sr">${text}</span>`;
+        const none = `<span aria-hidden="true">–</span>${sr('none')}`;
+        const tempCells = s => {
+            const hw = s.status === 'heatwave';
+            return (s.last_c == null ? `<td class="c-temp none">no data</td>`
+                    : `<td class="c-temp${isStale(s) ? ' none' : ''}">${bothUnits(s.last_c)}`
+                      + (isStale(s) ? sr(`, over ${latest.stale_days} days old`) : '') + `</td>`)
+                 + `<td class="c-anom${hw ? ' hw' : ''}">` + (s.anom_c != null ? bothUnits(s.anom_c, true) : none)
+                 + (hw ? sr(', suspected marine heatwave') : '') + `</td>`;
+        };
+        const seaCells = s => {
+            const e = seaOf(s);
+            if (e.excess_m == null) return `<td class="c-temp none">no data</td><td class="c-anom">${none}</td>`;
+            return `<td class="c-temp">${bothLengths(e.excess_m, true)}</td>`
+                 + (e.flood ? `<td class="c-anom flood-${e.flood}">${e.flood[0].toUpperCase() + e.flood.slice(1)}</td>`
+                            : `<td class="c-anom">${none}</td>`);
+        };
         const fill = () => {
-            const sr = text => `<span class="bt-sr">${text}</span>`;
-            div.querySelector('.bt-stations tbody').innerHTML = stationList.filter(s => !hiddenTypes.has(s.type))
-                .sort(compare).map(s => {
-                const hw = s.status === 'heatwave';
-                return `<tr data-id="${s.id}"><td class="c-sym">${markerHtml(s, true)}${sr(TYPE_ONE[s.type])}</td>`
-                    + `<th scope="row" class="c-name"><button class="bt-row-btn">${s.name}</button></th>`
-                    + `<td class="c-loc">${s.lat.toFixed(1)}°N</td>`
-                    + (s.last_c == null ? `<td class="c-temp none">no data</td>`
-                       : `<td class="c-temp${isStale(s) ? ' none' : ''}">${bothUnits(s.last_c)}`
-                         + (isStale(s) ? sr(`, over ${latest.stale_days} days old`) : '') + `</td>`)
-                    + `<td class="c-anom${hw ? ' hw' : ''}">`
-                    + (s.anom_c != null ? bothUnits(s.anom_c, true) : `<span aria-hidden="true">–</span>${sr('none')}`)
-                    + (hw ? sr(', suspected marine heatwave') : '') + `</td></tr>`;
-            }).join('');
+            const shown = s => (mode === 'sea' ? s.type === 'tide' : !hiddenTypes.has(s.type));
+            div.querySelector('.bt-stations tbody').innerHTML = stationList.filter(shown).sort(compare).map(s =>
+                `<tr data-id="${s.id}"><td class="c-sym">${mode === 'sea' ? seaMarkerHtml(s, true) : markerHtml(s, true)}`
+                + `${sr(TYPE_ONE[s.type])}</td>`
+                + `<th scope="row" class="c-name"><button class="bt-row-btn">${s.name}</button></th>`
+                + `<td class="c-loc">${s.lat.toFixed(1)}°N</td>`
+                + (mode === 'sea' ? seaCells(s) : tempCells(s)) + `</tr>`).join('');
             div.querySelectorAll('.bt-stations tbody tr').forEach(r => {
                 r.onclick = () => {
                     if (window.innerWidth <= 540) {  // on phones, get out of the card's way
@@ -837,15 +1243,49 @@ const ListCtrl = L.Control.extend({
             if (on) cell.setAttribute('aria-sort', sortDir === 1 ? naturalSort[sortKey] : flip[naturalSort[sortKey]]);
             else cell.removeAttribute('aria-sort');
         });
-        markSort();
-        div.querySelectorAll('.bt-sort').forEach(b => {
-            b.onclick = () => {
-                sortDir = b.dataset.sort === sortKey ? -sortDir : 1;  // same column again reverses
-                sortKey = b.dataset.sort;
-                markSort();
-                fill();
-            };
-        });
+        // the column headers for the current view
+        const heads = () => {
+            div.querySelector('.bt-stations thead').innerHTML = `<tr><th scope="col" class="c-sym"><span class="bt-sr">Type</span></th>`
+                + th('name', 'Name', 'Sort by name') + th('loc', 'Location', 'Sort by latitude')
+                + COLS[mode].map(c => th(...c)).join('') + `</tr>`;
+            div.querySelectorAll('.bt-sort').forEach(b => {
+                b.onclick = () => {
+                    sortDir = b.dataset.sort === sortKey ? -sortDir : 1;  // same column again reverses
+                    sortKey = b.dataset.sort;
+                    markSort();
+                    fill();
+                };
+            });
+            markSort();
+        };
+        // the counts above the table: stations reporting, and heatwaves or flooding
+        const fillSummary = () => {
+            const q = id => div.querySelector(`#${id}`);
+            if (mode === 'sea') {
+                const tides = stationList.filter(s => s.type === 'tide');
+                q('bt-l-reporting').textContent = 'Tide stations reporting';
+                q('bt-n-reporting').textContent = `${tides.filter(s => seaOf(s).excess_m != null).length} of ${tides.length}`;
+                q('bt-l-alert').textContent = 'Flooding';
+                q('bt-n-heatwave').textContent = tides.filter(s => seaOf(s).flood).length;
+                q('bt-updated').textContent = pacific(seaLatest.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
+            } else {
+                q('bt-l-reporting').textContent = 'Stations reporting';
+                q('bt-n-reporting').textContent = `${stationList.filter(s => s.last_c != null && !isStale(s)).length} of ${stationList.length}`;
+                q('bt-l-alert').textContent = 'Suspected marine heatwaves';
+                q('bt-n-heatwave').textContent = stationList.filter(s => s.status === 'heatwave').length;
+                q('bt-updated').textContent = pacific(latest.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
+            }
+        };
+        // rebuilt for the view showing; a sort by a column the view doesn't have goes back to north to south
+        div.refresh = () => {
+            if (!['name', 'loc', ...COLS[mode].map(c => c[0])].includes(sortKey)) { sortKey = 'loc'; sortDir = 1; }
+            div.querySelector('.bt-stations caption').textContent = CAPTION[mode];
+            heads();
+            fill();
+            fillSummary();
+            fit();
+        };
+        div.refresh();
         div.querySelectorAll('.bt-filter button').forEach(b => {
             b.onclick = () => {
                 const t = b.dataset.type;
@@ -874,6 +1314,15 @@ const ListCtrl = L.Control.extend({
     },
 });
 
+// sea level at the tide stations (sealevel.py); without it the Sea level button is turned off
+const seaReady = fetch('data/sealevel.json', {cache: 'no-cache'}).then(r => r.json()).then(d => {
+    seaLatest = d;
+    sea = Object.fromEntries(d.stations.map(e => [e.id, e]));
+}).catch(() => {
+    const b = document.querySelector('.bt-mode [data-mode="sea"]');
+    b.disabled = true;
+    b.title = 'Sea level data unavailable right now';
+});
 fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
     latest = data;
     // update.py marks readings older than stale_days; check again against the viewer's clock, since the data
@@ -884,26 +1333,18 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
             s.status = 'stale';
         }
     });
-    const reporting = data.stations.filter(s => s.last_c != null && !isStale(s));
     stationList = data.stations;
     // north to south, so Tab moves steadily down the coast
     [...data.stations].sort((a, b) => b.lat - a.lat).forEach(s => {
-        const has = s.last_c != null;
-        const m = L.marker([s.lat, s.lon], {icon: L.divIcon({className: 'bt-mk-wrap', iconSize: [28, 28],
-                  html: markerHtml(s), popupAnchor: [0, -8], tooltipAnchor: [10, 0]})});
-        const old = has && Date.now() - s.last_time_ms > 864e5;  // over a day: say how old
-        const label = (has && !isStale(s) ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
-                                            + (old ? ` · last reading ${relAge(s.last_time_ms)}` : '')
-                                          : `${s.name}: no water temperature in the past ${data.stale_days} days`)
-                      + (s.status === 'heatwave' ? ' · Suspected marine heatwave' : '');
-        m.bindTooltip(label, {className: 'bt-font'});
-        // the same words for screen readers (commas read better than '·'); Leaflet rebuilds the
-        // marker's element each time a type filter puts it back on the map, so name it on every add
-        m.on('add', () => m.getElement().setAttribute('aria-label', `${TYPE_ONE[s.type]}, ${label.replace(/ · /g, ', ')}`));
+        const m = L.marker([s.lat, s.lon], {icon: markerIcon(s)});
+        m.bindTooltip(() => markerLabel(s), {className: 'bt-font'});  // worded for the view showing when it opens
+        // the same words for screen readers; Leaflet rebuilds the marker's element each time a type filter
+        // or the view puts it back on the map, so name it on every add
+        m.on('add', () => nameMarker(m, s));
         m.addTo(map);
         // pan popups clear of the zoom / layer / unit controls along the top
-        m.bindPopup(() => popupHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
-                                         autoPanPaddingBottomRight: [10, 10]});
+        m.bindPopup(() => cardHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
+                                        autoPanPaddingBottomRight: [10, 10]});
         // a click (or Enter) opens the popup or the sheet, whichever fits, instead of always the popup
         m.off({click: m._openPopup, keypress: m._onKeyPress});
         m.on('click', () => openStation(s.id));
@@ -916,7 +1357,7 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
             focusCard(el);
             countOpen(s);
             e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.textContent = relAge(Number(el.dataset.t)); });
-            if (has) openChart(s.id);
+            openCardChart(s);
         });
         // closed with Escape or ✕ (focus was in the card): back to the opener; closed by clicking
         // elsewhere on the map: leave focus where the click put it
@@ -929,10 +1370,9 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
         // ?station=46026 opens that buoy's popup (shareable links)
         if (new URLSearchParams(location.search).get('station') === s.id) openStation(s.id);
     });
-    map.addControl(new ListCtrl());  // also holds the summary counts filled in here
-    document.getElementById('bt-n-reporting').textContent = `${reporting.length} of ${data.stations.length}`;
-    document.getElementById('bt-n-heatwave').textContent = data.stations.filter(s => s.status === 'heatwave').length;
-    document.getElementById('bt-updated').textContent = pacific(data.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
+    map.addControl(new ListCtrl());  // also holds the summary counts
+    // ?view=sea opens the map in the sea level view
+    if (new URLSearchParams(location.search).get('view') === 'sea') seaReady.then(() => btSetMode('sea'));
 }).catch(() => {
     document.getElementById('map').insertAdjacentHTML('beforeend', '<div class="bt-font" style="position:absolute;'
         + 'top:10px;left:60px;z-index:1000;background:white;padding:6px 10px;border-radius:4px;">Data unavailable right now</div>');

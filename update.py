@@ -20,7 +20,8 @@
    buoys whose latest reading is more than STALE_DAYS old get 'stale'.
 3. Once a day, add an entry to the daily marine heatwave summary feed
    (site/feed.xml; see feed.py).
-4. Exit with an error (so GitHub emails the repository owner) if no buoy has
+4. Fetch sea level at the tide stations (site/data/sealevel*; see sealevel.py).
+5. Exit with an error (so GitHub emails the repository owner) if no buoy has
    reported within STALE_HOURS.
 """
 import json
@@ -31,6 +32,7 @@ import pandas as pd
 
 import ioos
 from feed import update_feed
+from sealevel import update_sealevel
 from ndbc import NDBC_URL, http, read_stdmet
 
 RECENT_DAYS = 45
@@ -166,6 +168,10 @@ def main():
               for s in ['heatwave', 'warmer', 'normal', 'cooler', 'coldspell', 'noclim', 'stale']}
     print(f"{now:%Y-%m-%d %H:%M} UTC: {sum('status' in e for e in entries)}/{len(entries)} buoys reporting; {counts}")
     update_feed(entries, now)
+    try:
+        update_sealevel(now)
+    except Exception as e:  # CO-OPS trouble shouldn't stop the temperature update; the map keeps working without it
+        print(f'Sea level update failed: {e!r}')
 
     newest_h = min(((now.timestamp() * 1000 - e['last_time_ms']) / 3.6e6 for e in entries if 'last_time_ms' in e),
                    default=float('inf'))
