@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methods · Beach Thermometer</title>
+<meta name="description" content="Where Beach Thermometer's data comes from, how often it updates, how normal ranges are estimated, and how suspected marine heatwaves and flood levels are flagged.">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- anonymous visit counts (no cookies, no personal data): https://beachthermometer.goatcounter.com -->
+<script data-goatcounter="https://beachthermometer.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<style>
+/* same colors and header as the map page and the accessibility statement */
+:root {
+    --fandango: #C637A0; --ink: #121826; --hairline: rgba(255,255,255,0.10); --muted: #A3ACBD;
+    --text: #1F2937; --soft: #4B5563; --paper: #F7F7F9; --rule: #E5E7EB;
+}
+html, body { margin: 0; background: var(--paper); }
+body { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; color: var(--text); }
+.bt-skip { position: absolute; left: 12px; top: -60px; background: white; color: var(--ink); font-weight: 700;
+           font-size: 14px; padding: 10px 14px; border-radius: 8px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.bt-skip:focus { top: 12px; outline: 3px solid var(--fandango); outline-offset: 2px; }
+header {
+    background: var(--ink); border-bottom: 1px solid var(--hairline); color: white;
+    background-image: linear-gradient(90deg, rgba(198,55,160,0.10), rgba(18,24,38,0) 45%);
+    padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.home { text-decoration: none; }
+.home span {
+    font-size: 30px; font-weight: 700; line-height: 1.15;
+    background: linear-gradient(90deg, #4FC3F7 0%, #A78BFA 40%, #F472B6 70%, #FF4D4D 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.back { color: white; font-size: 14px; font-weight: 600; }
+header a:focus-visible { outline: 2px solid white; outline-offset: 3px; border-radius: 3px; }
+main { max-width: 760px; margin: 0 auto; padding: 36px 24px 56px; line-height: 1.65; font-size: 16px; }
+h1 { font-size: 32px; line-height: 1.2; margin: 0 0 18px; color: var(--ink); }
+h2 { font-size: 22px; margin: 42px 0 10px; color: var(--ink); }
+h3 { font-size: 17px; margin: 26px 0 6px; color: var(--ink); }
+p, li { margin: 0 0 12px; }
+ul, ol { padding-left: 22px; margin: 0 0 12px; }
+a { color: #A92A87; }
+a:focus-visible { outline: 2px solid var(--fandango); outline-offset: 2px; border-radius: 2px; }
+.notice { background: white; border: 1px solid var(--rule); border-left: 4px solid var(--fandango); border-radius: 6px;
+          padding: 14px 18px; margin: 0 0 8px; }
+.notice p:last-child { margin-bottom: 0; }
+nav.toc { background: white; border: 1px solid var(--rule); border-radius: 6px; padding: 12px 18px; margin: 24px 0 0; font-size: 15px; }
+nav.toc h2 { font-size: 15px; margin: 0 0 6px; }
+nav.toc ol { margin: 0; }
+nav.toc li { margin: 0 0 3px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 6px 0 14px; background: white; }
+caption { text-align: left; font-weight: 700; color: var(--ink); padding: 0 0 6px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border: 1px solid var(--rule); }
+thead th { background: #EEF0F4; }
+.wrap { overflow-x: auto; }  /* wide tables scroll on their own on phones, not the page */
+.refs li { font-size: 15px; }
+.refs a { overflow-wrap: anywhere; }  /* long web addresses wrap instead of widening the page on small screens */
+.wrap:focus-visible { outline: 2px solid var(--fandango); outline-offset: 2px; }
+.updated { color: var(--soft); font-size: 14px; margin-top: 40px; border-top: 1px solid var(--rule); padding-top: 14px; }
+@media (max-width: 540px) {
+    header { padding: 12px 20px; }
+    .home span { font-size: 22px; }
+    main { padding: 26px 18px 44px; font-size: 15px; }
+    h1 { font-size: 26px; }
+    h2 { font-size: 19px; }
+}
+</style>
+</head>
+<body>
+<a href="#content" class="bt-skip">Skip to content</a>
+<header>
+  <a class="home" href="./"><span>Beach Thermometer</span></a>
+  <a class="back" href="./">← Back to the map</a>
+</header>
+<main id="content">
+<h1>Methods</h1>
+
+<div class="notice">
+  <p><strong>Not an official product.</strong> Beach Thermometer is an experimental overview from Tini Scientific. It brings together water temperature and water level measurements from many monitoring networks so that resource managers, public service staff and the public can see, in one place, where ocean conditions along California's coast are changing. Its flags are automated and use their own methods, so they won't always match official products. For official information, see the <a href="#official">official sources</a> listed below.</p>
+</div>
+
+<nav class="toc" aria-labelledby="toc-title">
+  <h2 id="toc-title">On this page</h2>
+  <ol>
+    <li><a href="#sources">Where the data comes from, and when</a></li>
+    <li><a href="#temperature">Water temperature: checks and processing</a></li>
+    <li><a href="#normal">Normal ranges (climatology)</a></li>
+    <li><a href="#heatwaves">Suspected marine heatwaves and other labels</a></li>
+    <li><a href="#tides">Tides and flooding</a></li>
+    <li><a href="#email">The daily email</a></li>
+    <li><a href="#limits">Limitations</a></li>
+    <li><a href="#official">Official sources</a></li>
+    <li><a href="#references">References</a></li>
+  </ol>
+</nav>
+
+<h2 id="sources">Where the data comes from, and when</h2>
+<p>The site updates every hour, at about 20 minutes past the hour (Pacific time), when it collects the latest readings from each network. Most stations report hourly or more often; networks usually publish readings 25–50 minutes after they're taken, so the newest value on the map is typically under two hours old. Each station's card shows the time of its latest reading.</p>
+<div class="wrap" tabindex="0" role="region" aria-label="Stations and data sources (scrolls sideways on small screens)">
+<table>
+  <caption>Stations and data sources</caption>
+  <thead><tr><th scope="col">Station type</th><th scope="col">Stations</th><th scope="col">Operator</th><th scope="col">Data source</th><th scope="col">Sensor depth</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Offshore buoys</th><td>13</td><td>NOAA National Data Buoy Center (NDBC)</td><td>NDBC real-time files (past 45 days)</td><td>About 0.5–1 m</td></tr>
+    <tr><th scope="row">Wave buoys</th><td>26</td><td>Scripps Institution of Oceanography, Coastal Data Information Program (CDIP)</td><td>NDBC real-time files</td><td>About 0.5–1 m</td></tr>
+    <tr><th scope="row">Moorings</th><td>10</td><td>MBARI, Scripps, UC Davis Bodega Marine Laboratory</td><td>U.S. IOOS sensor catalog (ERDDAP)</td><td>Shallowest sensor within 3 m of the surface</td></tr>
+    <tr><th scope="row">Tide stations</th><td>15</td><td>NOAA Center for Operational Oceanographic Products and Services (CO-OPS)</td><td>Temperature: NDBC real-time files. Water level and tide predictions: CO-OPS data API</td><td>Temperature sensor about 1–2 m below low water</td></tr>
+    <tr><th scope="row">Shore stations</th><td>21</td><td>SCCOOS, CeNCOOS, UC Davis Bodega Marine Laboratory, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center, Exploratorium</td><td>U.S. IOOS sensor catalog (ERDDAP)</td><td>Pier and intake sensors, within 3 m of the surface</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Readings are averaged into hourly values. The site keeps each station's past 45 days for its chart; each station's chart data can be downloaded as a CSV file from its card. Real-time data from all of these networks is preliminary: operators may later correct or remove readings.</p>
+
+<h2 id="temperature">Water temperature: checks and processing</h2>
+<ul>
+  <li><strong>Buoys and tide stations (NDBC):</strong> missing-value codes are removed; the readings are otherwise used as published.</li>
+  <li><strong>Moorings and shore stations (IOOS):</strong> only surface sensors are used (the shallowest within 3 m), to match the buoys. Readings that failed the operator's automated quality checks are dropped, as are values outside −2 to 40 °C (some records contain fill values) and spikes more than 2 °C away from the median of the surrounding 6 hours.</li>
+  <li><strong>Stations that stop reporting:</strong> a station whose latest reading is more than 14 days old is shown as a hollow marker with "no water temperature in the past 14 days", and is left out of the heatwave counts.</li>
+</ul>
+
+<h2 id="normal">Normal ranges (climatology)</h2>
+<p>Each station is compared with its own history: what is normal at a harbor differs from what is normal 20 miles offshore. For every station with a long enough record, the site estimates, for each day of the year, the <strong>normal</strong> (average) water temperature and the <strong>normal range</strong>, from the 10th to the 90th percentile. The method follows the marine heatwave definition of Hobday et al. (2016):</p>
+<ol>
+  <li><strong>Daily means</strong> are computed from hourly values, counting only days with at least 12 hours of data.</li>
+  <li><strong>Reference period:</strong> the World Meteorological Organization's standard 1991–2020 period (WMO 2017), when the station has at least 15 years of data in it. Otherwise all of the station's complete years are used, if there are at least 8. A year counts if it has at least 60 days of data. Stations with shorter records show temperatures without a normal range. Each station's card lists the years its normal range is based on.</li>
+  <li><strong>Day-of-year statistics:</strong> for each day of the year, all daily means within 5 days either side (an 11-day window) across the reference years are pooled, and their mean and 10th and 90th percentiles are taken. At least 40 daily means are required.</li>
+  <li><strong>Smoothing:</strong> each statistic is smoothed with a 31-day running mean that wraps around the end of the year, so that short records don't give a jagged seasonal cycle.</li>
+</ol>
+<p>Historical data comes from NDBC's yearly archives for buoys and tide stations (NDBC's archive of CDIP buoys begins in 2004, and of CO-OPS tide stations in 2005) and from the IOOS sensor catalog for moorings and shore stations. Records of different lengths mean that normal ranges at different stations cover different years; stations whose normal is based on recent years only will partly include recent warming in their "normal".</p>
+
+<h2 id="heatwaves">Suspected marine heatwaves and other labels</h2>
+<p>Each station with a normal range gets one label, checked in this order:</p>
+<div class="wrap" tabindex="0" role="region" aria-label="Station labels (scrolls sideways on small screens)">
+<table>
+  <caption>Station labels</caption>
+  <thead><tr><th scope="col">Label</th><th scope="col">Rule</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Suspected marine heatwave</th><td>The daily mean has been above the station's 90th percentile for the date for at least 5 days in a row, up to the latest day.</td></tr>
+    <tr><th scope="row">Suspected marine cold spell</th><td>The daily mean has been below the 10th percentile for at least 5 days in a row, up to the latest day.</td></tr>
+    <tr><th scope="row">Warmer or cooler than usual</th><td>The average of the past 24 hours is more than 0.25 °C (0.45 °F) above or below the normal for the date.</td></tr>
+    <tr><th scope="row">Near normal</th><td>Within 0.25 °C of the normal.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>The 90th-percentile, 5-day rule is the core of Hobday et al.'s (2016) marine heatwave definition, and the cold spell rule is its mirror image (Schlegel et al. 2021). The streak shown in a card ("Suspected marine heatwave · 12 days") is the number of days in a row so far. A streak as long as the 45 days the site keeps is shown as "45+", since it may have started earlier.</p>
+<p>The flags are called <strong>suspected</strong> because they are simpler than a full marine heatwave analysis:</p>
+<ul>
+  <li>They are based on preliminary, real-time measurements at single points, not on reviewed data or satellite maps of the wider ocean.</li>
+  <li>A heatwave must run up to the latest day; Hobday et al. also join events separated by gaps of 2 days or less, which this site does not.</li>
+  <li>Reference periods differ between stations, and some are shorter than the 30 years Hobday et al. recommend.</li>
+  <li>Heatwaves are not graded by intensity (the moderate to extreme categories of Hobday et al. 2018).</li>
+</ul>
+
+<h2 id="tides">Tides and flooding</h2>
+<p>The Tides &amp; flooding view shows the 15 NOAA tide stations, using water level data from the CO-OPS data API, collected every hour.</p>
+<ul>
+  <li><strong>Measured water level:</strong> 6-minute readings, in feet or meters above Mean Lower Low Water (MLLW, the average of each day's lowest tide). Readings are preliminary. Readings that NOAA's automated checks flag for a sudden jump or a value beyond the sensor's limits are dropped. Charts use readings every 30 minutes over the past 30 days.</li>
+  <li><strong>Predicted tide:</strong> NOAA's tide predictions for each station, calculated from its tidal constituents (harmonic analysis of its long record), for the past 30 days and the next 48 hours.</li>
+  <li><strong>Water level vs. predicted tide:</strong> the measured level minus the predicted tide, averaged over the past hour. It shows how much higher or lower the water is than the tide alone would make it, from causes such as storms (wind and low air pressure), river flow, and slower ocean changes such as El Niño and warm water. This difference is also called the non-tidal residual (Pugh &amp; Woodworth 2014). Markers are colored by it, on a fixed scale of ±3 ft.</li>
+  <li><strong>25-hour average:</strong> the chart of measured minus predicted also shows its trailing 25-hour average, which smooths out what remains of the tide in the difference (the simplest form of the tidal filter described by Godin 1972; see also Thomson &amp; Emery 2014). Because it averages the previous 25 hours, it lags real changes by about 12 hours.</li>
+</ul>
+<h3>Flood levels</h3>
+<p>Flood levels are the National Weather Service's minor, moderate and major coastal flood thresholds for each station, as published in NOAA's station metadata. These are the water levels at which flooding begins to affect the area near the gauge. As of November 2026, 8 of the 15 stations have a minor flood level, 3 of those also have a moderate level, and none has a major level; stations without NWS levels show water levels but no flood status.</p>
+<p>A station is marked as having <strong>reached a flood level</strong> when the measured water level stayed at or above that level for at least two readings in a row (12 minutes) during the past hour, so a single unusual reading can't raise it. Markers show one, two or three rings for minor, moderate or major. A station whose latest reading is more than 3 hours old gets no flood status.</p>
+<p>A flood level reached at a gauge does not mean that flooding is happening everywhere nearby, and flooding can happen while a gauge stays below its flood level: gauges measure the still water level in harbors, not waves running up beaches, and local flooding depends on the shape of the shore. These flags are not warnings; the National Weather Service issues official coastal flood advisories and warnings.</p>
+
+<h2 id="email">The daily email</h2>
+<p>Once a day, at about 7:20 am Pacific time, the site posts a summary to its feed (and the daily email built from it): which stations started or ended a suspected marine heatwave since the day before, and which are continuing, grouped by region from north to south. A station that stops reporting during a heatwave is listed separately and not counted as ended. The summary uses the same rules as the map.</p>
+
+<h2 id="limits">Limitations</h2>
+<ul>
+  <li>Measurements are from fixed points. Conditions between stations, offshore and below the surface can differ.</li>
+  <li>Real-time data is preliminary and can contain errors that the automated checks miss; operators may correct it later.</li>
+  <li>Stations differ in sensor depth, setting (open ocean, bay, harbor, pier, seawater intake) and record length, which affects how comparable they are.</li>
+  <li>Normal ranges for stations with short records are less certain, and may partly reflect recent warming.</li>
+  <li>The site depends on each network's servers. When a source is unavailable, its stations show no current reading until it returns, and the Tides &amp; flooding view is turned off if NOAA's water level service can't be reached.</li>
+</ul>
+
+<h2 id="official">Official sources</h2>
+<ul>
+  <li><a href="https://www.integratedecosystemassessment.noaa.gov/regions/california-current/california-current-marine-heatwave-tracker-blobtracker">NOAA California Current Marine Heatwave Tracker</a></li>
+  <li><a href="https://psl.noaa.gov/marine-heatwaves/">NOAA marine heatwave forecasts (Physical Sciences Laboratory)</a></li>
+  <li><a href="https://coralreefwatch.noaa.gov/product/marine_heatwave/">NOAA Coral Reef Watch: Marine Heatwave Watch</a></li>
+  <li><a href="https://tidesandcurrents.noaa.gov/inundationdb/">NOAA Coastal Inundation Dashboard</a></li>
+  <li><a href="https://www.weather.gov/alerts">National Weather Service alerts</a>, including coastal flood advisories and warnings</li>
+</ul>
+<h3>Getting official flood alerts</h3>
+<p>The National Weather Service no longer sends alerts by email, but its coastal flood watches, warnings and advisories can be received these ways:</p>
+<ul>
+  <li><strong>Your county's emergency alerts.</strong> Each California county runs its own alert system (by text, phone call or email), which can include coastal flooding. <a href="https://calalerts.org/signup.html">CalAlerts.org</a>, recommended by the California Governor's Office of Emergency Services, lists every county's sign-up page.</li>
+  <li><strong>The FEMA app</strong> (free, for iPhone and Android) sends National Weather Service watches, warnings and advisories for up to five locations you choose. <a href="https://www.fema.gov/about/news-multimedia/mobile-products">FEMA mobile products</a>.</li>
+  <li><strong>The National Weather Service's alert feed</strong> for California coastal flooding, which a feed reader (or a feed-to-email service) can follow: <a href="https://api.weather.gov/alerts/active.atom?area=CA&amp;event=Coastal%20Flood%20Advisory,Coastal%20Flood%20Warning,Coastal%20Flood%20Watch,Coastal%20Flood%20Statement">NWS California coastal flood alerts (Atom feed)</a>.</li>
+  <li><strong><a href="https://www.weather.gov/nwr/">NOAA Weather Radio</a></strong>, which broadcasts all National Weather Service alerts for your area.</li>
+</ul>
+<p>Wireless Emergency Alerts, which reach phones without signing up, are used for the most dangerous warnings and usually not for coastal flood advisories.</p>
+
+<h2 id="references">References</h2>
+<h3>Methods</h3>
+<ul class="refs">
+  <li>Godin, G. (1972). <em>The Analysis of Tides</em>. University of Toronto Press.</li>
+  <li>Hobday, A. J., Alexander, L. V., Perkins, S. E., Smale, D. A., Straub, S. C., Oliver, E. C. J., Benthuysen, J. A., Burrows, M. T., Donat, M. G., Feng, M., Holbrook, N. J., Moore, P. J., Scannell, H. A., Sen Gupta, A., &amp; Wernberg, T. (2016). A hierarchical approach to defining marine heatwaves. <em>Progress in Oceanography</em>, 141, 227–238. <a href="https://doi.org/10.1016/j.pocean.2015.12.014">https://doi.org/10.1016/j.pocean.2015.12.014</a></li>
+  <li>Hobday, A. J., Oliver, E. C. J., Sen Gupta, A., Benthuysen, J. A., Burrows, M. T., Donat, M. G., Holbrook, N. J., Moore, P. J., Thomsen, M. S., Wernberg, T., &amp; Smale, D. A. (2018). Categorizing and naming marine heatwaves. <em>Oceanography</em>, 31(2), 162–173. <a href="https://doi.org/10.5670/oceanog.2018.205">https://doi.org/10.5670/oceanog.2018.205</a></li>
+  <li>Pugh, D., &amp; Woodworth, P. (2014). <em>Sea-Level Science: Understanding Tides, Surges, Tsunamis and Mean Sea-Level Changes</em>. Cambridge University Press.</li>
+  <li>Schlegel, R. W., Darmaraki, S., Benthuysen, J. A., Filbee-Dexter, K., &amp; Oliver, E. C. J. (2021). Marine cold-spells. <em>Progress in Oceanography</em>, 198, 102684. <a href="https://doi.org/10.1016/j.pocean.2021.102684">https://doi.org/10.1016/j.pocean.2021.102684</a></li>
+  <li>Thomson, R. E., &amp; Emery, W. J. (2014). <em>Data Analysis Methods in Physical Oceanography</em> (3rd ed.). Elsevier.</li>
+  <li>Thyng, K. M., Greene, C. A., Hetland, R. D., Zimmerle, H. M., &amp; DiMarco, S. F. (2016). True colors of oceanography: Guidelines for effective and accurate colormap selection. <em>Oceanography</em>, 29(3), 9–13. <a href="https://doi.org/10.5670/oceanog.2016.66">https://doi.org/10.5670/oceanog.2016.66</a> (the "thermal" color scale used for water temperature)</li>
+  <li>World Meteorological Organization (2017). <em>WMO Guidelines on the Calculation of Climate Normals</em> (WMO-No. 1203). WMO.</li>
+</ul>
+<h3>Data</h3>
+<ul class="refs">
+  <li>NOAA National Data Buoy Center: real-time and historical standard meteorological data. <a href="https://www.ndbc.noaa.gov">https://www.ndbc.noaa.gov</a></li>
+  <li>Scripps Institution of Oceanography, Coastal Data Information Program (CDIP). <a href="https://cdip.ucsd.edu">https://cdip.ucsd.edu</a></li>
+  <li>U.S. Integrated Ocean Observing System (IOOS) sensor catalog, ERDDAP server. <a href="https://erddap.sensors.ioos.us/erddap/">https://erddap.sensors.ioos.us/erddap/</a></li>
+  <li>NOAA Center for Operational Oceanographic Products and Services (CO-OPS): water levels, tide predictions and station flood levels. <a href="https://tidesandcurrents.noaa.gov">https://tidesandcurrents.noaa.gov</a></li>
+  <li>Station operators: MBARI, Scripps Institution of Oceanography, UC Davis Bodega Marine Laboratory, SCCOOS, CeNCOOS, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center and the Exploratorium.</li>
+</ul>
+
+<p class="updated">Questions about these methods: <a href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. This page was last updated on November 2, 2026.</p>
+</main>
+</body>
+</html>
