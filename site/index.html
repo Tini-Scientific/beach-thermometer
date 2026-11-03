@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Beach Thermometer</title>
-<meta name="description" content="Hourly water temperatures from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves.">
+<meta name="description" content="Hourly water temperatures and water levels from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves and high water.">
 <!-- link previews (iMessage, Slack, social media). Absolute URLs: switch to https://beachthermometer.com/ with the custom domain -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Beach Thermometer">
 <meta property="og:title" content="Beach Thermometer">
-<meta property="og:description" content="Hourly water temperatures from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves.">
+<meta property="og:description" content="Hourly water temperatures and water levels from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves and high water.">
 <meta property="og:url" content="https://tini-scientific.github.io/beach-thermometer/">
 <meta property="og:image" content="https://tini-scientific.github.io/beach-thermometer/assets/preview.jpg">
 <meta property="og:image:width" content="1200">
@@ -19,7 +19,7 @@
 <!-- lets feed readers find the daily summary from the site's address -->
 <link rel="alternate" type="application/atom+xml" title="Beach Thermometer: daily marine heatwave summary" href="feed.xml">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- anonymous visit counts (no cookies, no personal data): https://beachthermometer.goatcounter.com -->
@@ -51,9 +51,17 @@ body { display: flex; flex-direction: column; }
     display: flex; align-items: center; gap: 40px;
 }
 .bt-page-title { flex: 1; min-width: 0; }
+/* "Experimental" beside the title: plain words on the title's baseline, like a subtitle; links to the methods
+   page, which explains it */
+.bt-exp {
+    margin-left: 10px; font-size: 15px; font-weight: 400; font-style: italic; letter-spacing: 0;
+    color: #F472B6; text-decoration: none; white-space: nowrap;  /* the soft pink from the title's gradient */
+}
+.bt-exp:hover { color: #F9A8D4; text-decoration: underline; text-underline-offset: 3px; }
+.bt-exp:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 .bt-page-header h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.005em; line-height: 1.15; }
 /* title in a cold-to-hot gradient (blue to red), like a thermometer */
-.bt-page-header h1 {
+.bt-page-header h1 .bt-title-text {
     background: linear-gradient(90deg, #4FC3F7 0%, #A78BFA 40%, #F472B6 70%, #FF4D4D 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-block;
 }
@@ -301,6 +309,7 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
     .bt-page-header h1 { font-size: 22px; }
     .bt-page-header p { font-size: 12px; margin-top: 3px; }
     .bt-page-header { flex-wrap: wrap; gap: 6px; }
+    .bt-exp { font-size: 13px; margin-left: 6px; }
     .bt-credits { font-size: 9px; width: 100%; }
     .bt-credits .by { flex-direction: row; align-items: center; gap: 6px; padding-left: 0; border-left: none; }
     .bt-credits .by .bt-credit-label { margin: 0; }
@@ -329,8 +338,8 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
 <a href="#map" class="bt-skip" id="bt-skip">Skip to station table</a>
 <header class="bt-page-header bt-font">
   <div class="bt-page-title">
-    <h1>Beach Thermometer</h1>
-    <p>Hourly water temperatures from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves.</p>
+    <h1><span class="bt-title-text">Beach Thermometer</span> <a class="bt-exp" href="methods.html">Experimental</a></h1>
+    <p>Hourly water temperatures and water levels from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves and high water.</p>
   </div>
   <div class="bt-credits">
     <button class="bt-sources" aria-expanded="false" aria-controls="bt-data-by">Data sources</button>
@@ -340,7 +349,7 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
     </div>
     <div class="by">
       <div class="bt-credit-label">Dashboard by</div>
-      <img src="assets/logo.png" alt="Tini Scientific">
+      <img src="assets/logo.png" alt="Tini Scientific" width="504" height="108">
       <div class="bt-page-links"><a class="bt-a11y-link" href="methods.html">Methods</a> · <a class="bt-a11y-link" href="accessibility.html">Accessibility</a></div>
     </div>
   </div>
