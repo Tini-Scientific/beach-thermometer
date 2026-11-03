@@ -3,12 +3,15 @@
 For each tide station in data/stations.csv (its CO-OPS id), from the CO-OPS API:
 - the measured water level and the predicted tide (6-minute data, metres above MLLW),
   thinned to every STEP_MIN minutes: the past RECENT_DAYS and, for the tide, FORECAST_HOURS ahead.
-  Measured readings are preliminary (not yet reviewed by NOAA); those its automatic checks flag for
-  a sudden jump or a value past the sensor's limits are dropped;
+  Recent measured readings are preliminary: NOAA reviews them weeks to months later and may revise
+  them (the verified ones are marked; the time of the last verified reading is recorded). Readings its
+  automatic checks flag for a sudden jump or a value past the sensor's limits are dropped;
 - the excess sea level: measured minus predicted, averaged over the past hour (so a seiche or a
   passing wake doesn't swing it);
 - the National Weather Service's minor / moderate / major coastal flood levels (the ones its flood
   advisories use), converted to metres above MLLW; many stations have only some of them, or none.
+  Also the station's mean higher high water (MHHW, a typical high tide), above MLLW, for context.
+- NOAA's next predicted high tide (its published high/low tide predictions, as in tide tables).
   Flood status is the highest level the water held for at least two readings in a row (12 minutes)
   in the past hour, so a single odd reading can't raise it. A station whose latest reading is more
   than STALE_HOURS old gets no excess or flood status, rather than keeping an old one.
@@ -16,6 +19,7 @@ For each tide station in data/stations.csv (its CO-OPS id), from the CO-OPS API:
 Writes (not committed; published to GitHub Pages):
 - site/data/sealevel.json: per station, the latest water level, excess and flood status.
 - site/data/sealevel/{id}.json: the measured and predicted series for the station's chart.
+- site/data/sealevel/{id}.csv: the same at full 6-minute resolution, for download.
 Nothing is archived: CO-OPS keeps the full record.
 """
 import json
@@ -37,8 +41,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SITE_DATA = os.path.join(HERE, 'site', 'data')
 
 
-def series(params):
-    """A CO-OPS product as a Series of metres above MLLW, indexed by UTC time; empty when unavailable."""
+def series(params, verified=None):
+    """A CO-OPS product as a Series of metres above MLLW, indexed by UTC time; empty when unavailable.
+    With a list as `verified`, appends the times of verified readings (quality 'v') to it."""
     r = http.get(API, params={'datum': 'MLLW', 'units': 'metric', 'time_zone': 'gmt', 'format': 'json',
                               'application': 'beach-thermometer', **params}, timeout=60)
     body = r.json() if r.status_code == 200 else {}
@@ -46,6 +51,8 @@ def series(params):
     # water level flags 'O,F,R,L': R (rate of change) or L (beyond the sensor's limits) mark a suspect reading
     ok = lambda x: x.get('v') not in (None, '') and x.get('f', '0,0,0,0').split(',')[2:] == ['0', '0']
     s = pd.Series({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if ok(x)}, dtype=float)
+    if verified is not None:
+        verified += [pd.Timestamp(x['t'], tz='UTC') for x in rows if x.get('q') == 'v']
     return s.sort_index()
 
 
@@ -57,14 +64,29 @@ def sustained_high(s):
 
 
 def flood_levels(coops):
-    """The station's NWS flood levels in metres above MLLW (those it has); {} if none or unavailable."""
+    """The station's NWS flood levels in metres above MLLW (those it has; {} if none or unavailable), and its
+    MHHW above MLLW (None if unavailable)."""
     try:
         fl = http.get(f'{MDAPI}/{coops}/floodlevels.json', params={'units': 'metric'}, timeout=30).json()
-        datums = http.get(f'{MDAPI}/{coops}/datums.json', params={'units': 'metric'}, timeout=30).json()['datums']
-        mllw = next(d['value'] for d in datums if d['name'] == 'MLLW')
+        datums = {d['name']: d['value'] for d in
+                  http.get(f'{MDAPI}/{coops}/datums.json', params={'units': 'metric'}, timeout=30).json()['datums']}
+        mllw = datums['MLLW']
     except Exception:
-        return {}
-    return {k: round(fl[f'nws_{k}'] - mllw, 3) for k in LEVELS if fl.get(f'nws_{k}') is not None}
+        return {}, None
+    levels = {k: round(fl[f'nws_{k}'] - mllw, 3) for k in LEVELS if fl.get(f'nws_{k}') is not None}
+    return levels, (round(datums['MHHW'] - mllw, 3) if datums.get('MHHW') is not None else None)
+
+
+def high_tides(coops, now):
+    """NOAA's predicted high tides (its high/low predictions, type 'H') over the two days after `now`:
+    a Series of metres above MLLW by UTC time; empty when unavailable."""
+    fmt = '%Y%m%d %H:%M'
+    r = http.get(API, params={'product': 'predictions', 'interval': 'hilo', 'station': coops, 'datum': 'MLLW',
+                              'units': 'metric', 'time_zone': 'gmt', 'format': 'json', 'application': 'beach-thermometer',
+                              'begin_date': f'{now:{fmt}}',
+                              'end_date': f'{now + pd.Timedelta(days=2):{fmt}}'}, timeout=60)
+    rows = (r.json().get('predictions') or []) if r.status_code == 200 else []
+    return pd.Series({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if x.get('type') == 'H'}, dtype=float).sort_index()
 
 
 def thin(s):
@@ -79,21 +101,32 @@ def update_sealevel(now):
     entries = []
     for _, info in stations[stations['type'] == 'tide'].iterrows():
         sid, coops = info['station'], info['coops']
-        obs = series({'product': 'water_level', 'station': coops, 'begin_date': f'{begin:{fmt}}', 'end_date': f'{now:{fmt}}'})
+        verified = []
+        obs = series({'product': 'water_level', 'station': coops, 'begin_date': f'{begin:{fmt}}', 'end_date': f'{now:{fmt}}'},
+                     verified)
         pred = series({'product': 'predictions', 'interval': '6', 'station': coops, 'begin_date': f'{begin:{fmt}}',
                        'end_date': f'{now + pd.Timedelta(hours=FORECAST_HOURS):{fmt}}'})
-        levels = flood_levels(coops)
-        entry = {'id': sid, 'coops': coops, 'flood_levels_m': levels}
+        levels, mhhw = flood_levels(coops)
+        entry = {'id': sid, 'coops': coops, 'flood_levels_m': levels, 'mhhw_m': mhhw,
+                 # readings after this are preliminary; None when none in the window are verified yet
+                 'verified_until_ms': int(max(verified).timestamp() * 1000) if verified else None}
         if len(obs):
             entry['time_ms'] = int(obs.index[-1].timestamp() * 1000)
         if len(obs) and len(pred) and now - obs.index[-1] <= pd.Timedelta(hours=STALE_HOURS):
             last_hour = obs[obs.index > obs.index[-1] - pd.Timedelta(hours=1)]
             excess = (last_hour - pred.reindex(last_hour.index)).dropna()
             high = sustained_high(last_hour)
+            hi = high_tides(coops, now)
+            ahead = hi[hi.index > now].index
+            if len(ahead):
+                entry.update({'next_high_m': round(float(hi[ahead[0]]), 3), 'next_high_ms': int(ahead[0].timestamp() * 1000)})
             entry.update({'level_m': round(float(obs.iloc[-1]), 3),
                           'excess_m': round(float(excess.mean()), 3) if len(excess) else None,
                           'flood': next((k for k in LEVELS[::-1] if k in levels and high >= levels[k]), None)})
         entries.append(entry)
+        pd.DataFrame({'water_level_m_mllw': obs, 'predicted_tide_m_mllw': pred,
+                      'measured_minus_predicted_m': obs - pred}).round(3).rename_axis('time_utc').to_csv(
+            os.path.join(SITE_DATA, 'sealevel', f'{sid}.csv'))
         o, p = thin(obs), thin(pred)
         with open(os.path.join(SITE_DATA, 'sealevel', f'{sid}.json'), 'w') as f:
             json.dump({'id': sid, 'obs_t': [int(t.timestamp() * 1000) for t in o.index], 'obs': [round(v, 3) for v in o],

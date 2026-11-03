@@ -230,7 +230,12 @@ body.imperial .bt-imperial { display: inline; }
 .bt-pill.flood-moderate { background: #F07C1F; color: var(--ink); }
 .bt-pill.flood-major { background: var(--heatwave-red); color: white; }
 .bt-level { font-size: 13px; color: #374151; margin-top: 10px; }
+/* sea level card: the signed height with what it's measured against beside it, on one line */
+.bt-sea-now { display: flex; align-items: baseline; gap: 10px; }
+.bt-sea-now .bt-temp { flex: none; white-space: nowrap; }  /* the number stays whole; the words beside it wrap */
+.bt-sea-vs { font-size: 13px; color: #374151; }
 .bt-level b { font-weight: 700; color: var(--ink); }
+.bt-level .bt-metric, .bt-level .bt-imperial { white-space: nowrap; }  /* keep each value with its unit */
 .bt-stations td.c-anom.flood-minor { color: #F5C400; font-weight: 700; }
 .bt-stations td.c-anom.flood-moderate { color: #FF9A4D; font-weight: 700; }
 .bt-stations td.c-anom.flood-major { color: #FF5A6A; font-weight: 700; }
@@ -394,12 +399,13 @@ const SEA_COLORS = ['#3f007d', '#5e3c99', '#3a6fc4', '#2ba3d6', '#8fd8e8', '#f7f
 const SEA_RANGE_M = 3 / 3.28084;
 const seaColor = m => ramp(SEA_COLORS, (m + SEA_RANGE_M) / (2 * SEA_RANGE_M));
 const FT = 3.28084;
-// National Weather Service coastal flood levels: [label, ring color, chart line color (darker, to show on white)];
+// National Weather Service coastal flood levels: [label, ring color, chart band (a pale solid tint, like the
+// temperature chart's normal-range bands, so the legend swatch matches)];
 // the rings also count up (1, 2, 3), so the level doesn't rest on color alone
 const LEVELS = ['minor', 'moderate', 'major'];
 // Worded as the water reaching a level at the gauge, not as flooding: what floods nearby depends on the place and the waves.
-const FLOOD = {minor: ['Minor flood level reached', '#F5C400', '#A68400'], moderate: ['Moderate flood level reached', '#F07C1F', '#B85400'],
-               major: ['Major flood level reached', '#D7263D', '#B0182B']};
+const FLOOD = {minor: ['Minor flood level reached', '#F5C400', 'rgb(255, 245, 200)'], moderate: ['Moderate flood level reached', '#F07C1F', 'rgb(254, 226, 200)'],
+               major: ['Major flood level reached', '#D7263D', 'rgb(252, 214, 214)']};
 const SEA_WINDOWS = {day: ['Day', 1], d3: ['3 days', 3], week: ['Week', 7], d30: ['30 days', 30]};
 const SEA_DEFAULT_WINDOW = 'd3';
 
@@ -423,7 +429,7 @@ function bothUnits(c, signed = false) {
 }
 // lengths (metres) in both units, like temperatures: 2 decimals in m, 1 in ft
 function bothLengths(m, signed = false) {
-    const s = (v, n) => (signed && v >= 0 ? '+' : '') + v.toFixed(n);
+    const s = (v, n) => (v < 0 ? '−' : signed ? '+' : '') + Math.abs(v).toFixed(n);  // a true minus sign
     return `<span class="bt-metric">${s(m, 2)} m</span><span class="bt-imperial">${s(m * FT, 1)} ft</span>`;
 }
 function bothLengthRange(a, b) {
@@ -712,18 +718,27 @@ function seaPopupHtml(s) {
     const when = pacific(e.time_ms, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
     const swatch = `<svg class="bt-swatch" width="36" height="36" viewBox="0 0 24 24">`
         + shape('tide', 11, `fill="${seaColor(e.excess_m)}" stroke="rgba(18,24,38,0.35)" stroke-width="1" stroke-linejoin="round"`) + `</svg>`;
-    const lv = e.flood_levels_m, next = LEVELS.find(k => lv[k] != null && e.level_m < lv[k]);
+    const lv = e.flood_levels_m;
+    // the water now against the flood level (the highest it's at or above, else the next one up), then NOAA's next
+    // predicted high tide; words, not signs: "above" and "below" say which way
+    const side = (a, b) => `${bothLengths(Math.abs(a - b))} ${a >= b ? 'above' : 'below'}`;
+    const over = LEVELS.filter(k => lv[k] != null && e.level_m >= lv[k]).pop();
+    const below = LEVELS.find(k => lv[k] != null && e.level_m < lv[k]);
+    const level = over || below;
+    const parts = [level ? `<b>${side(e.level_m, lv[level])} ${level} flood level.</b>` : null,
+                   e.next_high_m != null ? `Next high tide: ${bothLengths(e.next_high_m)} at `
+                                           + `${pacific(e.next_high_ms, {hour: 'numeric', minute: '2-digit'})}` : null].filter(Boolean);
+    const tides = parts.length ? `<div class="bt-level">${parts.join(' ')}</div>` : '';  // one line
     const pill = e.flood ? `<span class="bt-pill flood-${e.flood}">${FLOOD[e.flood][0]}</span>`
                : `<span class="bt-pill">${Object.keys(lv).length ? 'Below flood level' : 'No NWS flood levels for this station'}</span>`;
     const seg = Object.entries(SEA_WINDOWS).map(([k, [label]]) =>
         `<button class="bt-window${k === SEA_DEFAULT_WINDOW ? ' on' : ''}" data-win="${k}" aria-pressed="${k === SEA_DEFAULT_WINDOW}" `
         + `onclick="btSeaWindow('${s.id}', '${k}', this)">${label}</button>`).join('');
     return `<div class="bt-popup">${head}`
-        + `<div class="bt-sec bt-now">${swatch}<div><div class="bt-temp">${bothLengths(Math.abs(e.excess_m))}</div>`
-        + `<div class="bt-when">${e.excess_m >= 0 ? 'above' : 'below'} the predicted tide (past hour) · `
-        + `<span class="bt-age" data-t="${e.time_ms}">${relAge(e.time_ms)}</span> · ${when}</div></div></div>`
-        + `<div class="bt-sec">${pill}<div class="bt-level">Water level <b>${bothLengths(e.level_m)}</b> above the lowest tides (MLLW)`
-        + (next ? `, ${bothLengths(lv[next] - e.level_m)} below the ${next} flood level` : '') + `.</div>`
+        + `<div class="bt-sec bt-now">${swatch}<div><div class="bt-sea-now"><span class="bt-temp">${bothLengths(e.excess_m, true)}</span>`
+        + `<span class="bt-sea-vs">vs. the predicted tide (past hour)</span></div>`
+        + `<div class="bt-when"><span class="bt-age" data-t="${e.time_ms}">${relAge(e.time_ms)}</span> · ${when} · preliminary</div></div></div>`
+        + `<div class="bt-sec">${pill}${tides}`
         + (e.flood ? `<div class="bt-level bt-note">Measured at the gauge; flooding nearby depends on local conditions and waves. `
                      + `Automated, not an official warning: see ${link('https://www.weather.gov/alerts', 'National Weather Service alerts')}.</div>` : '')
         + `</div>`
@@ -733,8 +748,8 @@ function seaPopupHtml(s) {
         + `<div class="bt-chart bt-chart-diff"><canvas id="bt-seadiff-${s.id}" role="img" `
         + `aria-label="Chart of the water above or below the predicted tide, described below"></canvas></div>`
         + `<p class="bt-chart-sum" id="bt-seasum-${s.id}" aria-live="polite"></p></div>`
-        + `<div class="bt-foot">${links}`
-        + (Object.keys(lv).length ? '<br>Flood levels: National Weather Service' : '') + `</div></div>`;
+        + `<div class="bt-foot"><a class="bt-download" href="data/sealevel/${s.id}.csv" download="NOAA_${s.coops}_water_level.csv">`
+        + `Download data (CSV)</a> · ${links}</div></div>`;
 }
 
 // shades the chart to the right of now, where only the predicted tide is drawn
@@ -768,11 +783,15 @@ function drawSeaChart(id) {
     const diff = d.obs_t.map((t, i) => (predAt.has(t) ? {x: t, y: convLen(d.obs[i] - predAt.get(t))} : null))
                         .filter(p => p && p.x >= t0 && p.x <= t1);
     const avg = excessAverage(d).filter(p => p.x >= t0 && p.x <= t1).map(p => ({x: p.x, y: convLen(p.y)}));
-    // a flood level is drawn when the water came, or is predicted to come, within 0.5 m of it
+    // flood levels as shaded bands, each from its level up to the next (the highest to the top of the chart),
+    // drawn when the water came, or is predicted to come, within 0.5 m of the level; under the lines
     const top = Math.max(...obs.concat(pred).map(p => p.y));
-    const floods = LEVELS.filter(k => e.flood_levels_m[k] != null && top >= convLen(e.flood_levels_m[k] - 0.5)).map(k => ({
-        label: `${k[0].toUpperCase() + k.slice(1)} flood level`, data: [{x: t0, y: convLen(e.flood_levels_m[k])}, {x: t1, y: convLen(e.flood_levels_m[k])}],
-        borderColor: FLOOD[k][2], borderDash: [2, 3], borderWidth: 1.5, pointRadius: 0, fill: false, order: 2, pointStyle: 'line'}));
+    const shown = LEVELS.filter(k => e.flood_levels_m[k] != null && top >= convLen(e.flood_levels_m[k] - 0.5));
+    const floods = shown.map((k, i) => ({
+        label: `${k[0].toUpperCase() + k.slice(1)} flood level`,
+        data: [{x: t0, y: convLen(e.flood_levels_m[k])}, {x: t1, y: convLen(e.flood_levels_m[k])}],
+        backgroundColor: FLOOD[k][2], borderWidth: 0, pointRadius: 0, fill: i < shown.length - 1 ? '+1' : 'end',
+        order: 3, pointStyle: 'rect'}));
     const narrow = window.innerWidth < 540;
     const step = days === 1 ? 6 * 3.6e6 : days === 3 ? 864e5 : days === 7 ? (narrow ? 2 : 1) * 864e5 : (narrow ? 10 : 5) * 864e5;
     const tickLabel = v => (days === 1 ? pacific(v, {hour: 'numeric'}) : pacific(v, {month: 'short', day: 'numeric'}));
@@ -871,7 +890,7 @@ function seaSummary(id, t0, days) {
     }
     const top = idx.reduce((a, i) => (d.obs[i] > d.obs[a] ? i : a)), lv = e.flood_levels_m;
     const hit = LEVELS.filter(k => lv[k] != null && d.obs[top] >= lv[k]).pop(), next = LEVELS.find(k => lv[k] != null && d.obs[top] < lv[k]);
-    parts.push(`Highest water level: ${bothLengths(d.obs[top])} above the lowest tides (MLLW), ${when(d.obs_t[top])}`
+    parts.push(`Highest water level: ${bothLengths(d.obs[top])} on tide charts (MLLW), ${when(d.obs_t[top])}`
                + (hit ? `, reaching the ${hit} flood level` : next ? `, ${bothLengths(lv[next] - d.obs[top])} below the ${next} flood level` : '') + '.');
     const avg = excessAverage(d);
     if (avg.length) {  // the 25-hour average now, and against a week earlier when there's one
