@@ -6,6 +6,10 @@ name: Update and deploy
 on:
   schedule:
     - cron: '20 * * * *'  # 20 past each hour (NDBC posts ~25-50 min after each observation)
+    # Backup runs for the daily email (feed.py posts on the first run after 7 am Pacific), as
+    # GitHub sometimes skips scheduled runs. Times are UTC: 7:50 am Pacific in winter (PST, 15:50)
+    # and in summer (PDT, 14:50); the other one is a harmless extra update.
+    - cron: '50 14,15 * * *'
   workflow_dispatch:       # "Run workflow" button for manual updates
   push:
     branches: [main]

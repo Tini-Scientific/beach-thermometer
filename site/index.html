@@ -88,7 +88,7 @@ body { display: flex; flex-direction: column; }
 }
 .bt-credits img { height: 34px; width: auto; display: block; margin-top: 2px; }
 .bt-page-links { color: var(--muted); font-size: 10.5px; margin-top: 6px; }
-.bt-a11y-link { color: var(--muted); font-size: 10.5px; }
+.bt-a11y-link { color: var(--muted); font-size: 10.5px; white-space: nowrap; }  /* lines wrap between links, not inside one */
 .bt-a11y-link:hover { color: white; }
 .bt-a11y-link:focus-visible { outline: 2px solid white; outline-offset: 2px; border-radius: 2px; }
 .bt-sources { display: none; }  /* phones only: shows and hides the "Data by" list */
@@ -355,7 +355,7 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
     <div class="by">
       <div class="bt-credit-label">Dashboard by</div>
       <img src="assets/logo.png" alt="Tini Scientific" width="504" height="108">
-      <div class="bt-page-links"><a class="bt-a11y-link" href="methods.html">Methods</a> · <a class="bt-a11y-link" href="accessibility.html">Accessibility</a></div>
+      <div class="bt-page-links"><a class="bt-a11y-link" href="methods.html">Methods</a> · <a class="bt-a11y-link" href="accessibility.html">Accessibility</a> · <a class="bt-a11y-link" href="https://buttondown.com/beachthermometer">Get the daily email</a></div>
     </div>
   </div>
 </header>
