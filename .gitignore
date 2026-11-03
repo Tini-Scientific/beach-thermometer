@@ -5,3 +5,5 @@ site/feed.xml
 data/historical/
 __pycache__/
 .DS_Store
+# notes for Claude Code: kept on this Mac, not published
+CLAUDE.md
