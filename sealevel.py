@@ -56,6 +56,29 @@ def series(params, verified=None):
     return s.sort_index()
 
 
+def water_temperature(coops, begin, end, interval=None):
+    """A tide station's water temperature (°C) from CO-OPS, indexed by UTC time; empty when unavailable.
+    `begin` and `end` are Timestamps; 6-minute readings (at most 31 days per request), or hourly ones with
+    interval='h' (at most a year). Readings CO-OPS's automatic checks flag (flags 'X,N,R': past the
+    sensor's maximum or minimum, or a sudden jump) are dropped."""
+    fmt = '%Y%m%d %H:%M'
+    params = {'product': 'water_temperature', 'station': coops, 'begin_date': f'{begin:{fmt}}',
+              'end_date': f'{end:{fmt}}', 'units': 'metric', 'time_zone': 'gmt', 'format': 'json',
+              'application': 'beach-thermometer'}
+    if interval:
+        params['interval'] = interval
+    try:
+        r = http.get(API, params=params, timeout=120)
+        rows = (r.json().get('data') or []) if r.status_code == 200 else []
+    except Exception:
+        rows = []
+    ok = lambda x: x.get('v') not in (None, '') and '1' not in x.get('f', '0,0,0').split(',')
+    s = pd.Series({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if ok(x)}, dtype=float, name='wtmp_c')
+    if s.empty:
+        s.index = pd.DatetimeIndex([], tz='UTC')
+    return s.sort_index()
+
+
 def sustained_high(s):
     """The highest level held by two consecutive 6-minute readings (the lower of each pair); NaN if no pair."""
     pairs = pd.concat([s, s.shift(1)], axis=1).min(axis=1)

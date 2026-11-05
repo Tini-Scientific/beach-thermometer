@@ -75,7 +75,7 @@ thead th { background: #EEF0F4; }
 <h1>Methods</h1>
 
 <div class="notice">
-  <p><strong>Not an official product.</strong> Beach Thermometer is an experimental overview from Tini Scientific. It brings together water temperature and water level measurements from many monitoring networks so that resource managers, public service staff and the public can see, in one place, where ocean conditions along California's coast are changing. Its flags are automated and use their own methods, so they won't always match official products. For official information, see the <a href="#official">official sources</a> listed below.</p>
+  <p><strong>Not an official product.</strong> Beach Thermometer is an experimental overview from Tini Scientific. It brings together water temperature and water level measurements from many monitoring networks so that resource managers, public service staff and the public can see, in one place, where ocean conditions along the coasts of Washington, Oregon and California are changing. Its flags are automated and use their own methods, so they won't always match official products. For official information, see the <a href="#official">official sources</a> listed below.</p>
 </div>
 
 <nav class="toc" aria-labelledby="toc-title">
@@ -100,11 +100,11 @@ thead th { background: #EEF0F4; }
   <caption>Stations and data sources</caption>
   <thead><tr><th scope="col">Station type</th><th scope="col">Stations</th><th scope="col">Operator</th><th scope="col">Data source</th><th scope="col">Sensor depth</th></tr></thead>
   <tbody>
-    <tr><th scope="row">Offshore buoys</th><td>13</td><td>NOAA National Data Buoy Center (NDBC)</td><td>NDBC real-time files (past 45 days)</td><td>About 0.5–1 m</td></tr>
-    <tr><th scope="row">Wave buoys</th><td>26</td><td>Scripps Institution of Oceanography, Coastal Data Information Program (CDIP)</td><td>NDBC real-time files</td><td>About 0.5–1 m</td></tr>
-    <tr><th scope="row">Moorings</th><td>10</td><td>MBARI, Scripps, UC Davis Bodega Marine Laboratory</td><td>U.S. IOOS sensor catalog (ERDDAP)</td><td>Shallowest sensor within 3 m of the surface</td></tr>
-    <tr><th scope="row">Tide stations</th><td>15</td><td>NOAA Center for Operational Oceanographic Products and Services (CO-OPS)</td><td>Temperature: NDBC real-time files. Water level and tide predictions: CO-OPS data API</td><td>Temperature sensor about 1–2 m below low water</td></tr>
-    <tr><th scope="row">Shore stations</th><td>21</td><td>SCCOOS, CeNCOOS, UC Davis Bodega Marine Laboratory, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center, Exploratorium</td><td>U.S. IOOS sensor catalog (ERDDAP)</td><td>Pier and intake sensors, within 3 m of the surface</td></tr>
+    <tr><th scope="row">Offshore buoys</th><td>23</td><td>NOAA National Data Buoy Center (NDBC); also three moorings that report through NDBC, run by the NSF Ocean Observatories Initiative and by Oregon State University for NANOOS</td><td>NDBC real-time files (past 45 days)</td><td>About 0.5–1 m</td></tr>
+    <tr><th scope="row">Wave buoys</th><td>32</td><td>Scripps Institution of Oceanography, Coastal Data Information Program (CDIP)</td><td>NDBC real-time files</td><td>About 0.5–1 m</td></tr>
+    <tr><th scope="row">Moorings</th><td>17</td><td>MBARI, Scripps, UC Davis Bodega Marine Laboratory, University of Washington (for NANOOS)</td><td>U.S. IOOS sensor catalog (ERDDAP); NANOOS and University of Washington ERDDAP servers for the Washington moorings</td><td>Shallowest sensor within 3 m of the surface</td></tr>
+    <tr><th scope="row">Tide stations</th><td>24</td><td>NOAA Center for Operational Oceanographic Products and Services (CO-OPS)</td><td>Temperature, water level and tide predictions: CO-OPS data API</td><td>About 0.3–5.6 m below mean lower low water (about 1–6.5 m below mid-tide), as listed by NOAA</td></tr>
+    <tr><th scope="row">Shore stations</th><td>21</td><td>SCCOOS, CeNCOOS, UC Davis Bodega Marine Laboratory, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center, Exploratorium</td><td>U.S. IOOS sensor catalog (ERDDAP)</td><td>Not reported in the data. Pier sensors: about 2 m below low water. Seawater intakes can draw from deeper water (about 15 m at the Monterey Bay Aquarium)</td></tr>
   </tbody>
 </table>
 </div>
@@ -112,8 +112,10 @@ thead th { background: #EEF0F4; }
 
 <h2 id="temperature">Water temperature: checks and processing</h2>
 <ul>
-  <li><strong>Buoys and tide stations (NDBC):</strong> missing-value codes are removed; the readings are otherwise used as published.</li>
-  <li><strong>Moorings and shore stations (IOOS):</strong> only surface sensors are used (the shallowest within 3 m), to match the buoys. Readings that failed the operator's automated quality checks are dropped, as are values outside −2 to 40 °C (some records contain fill values) and spikes more than 2 °C away from the median of the surrounding 6 hours.</li>
+  <li><strong>Buoys (NDBC):</strong> missing-value codes are removed; the readings are otherwise used as published.</li>
+  <li><strong>Tide stations (CO-OPS):</strong> 6-minute readings that NOAA's automated checks flag (a sudden jump, or a value beyond the sensor's limits) are dropped, both in the recent data and in the historical record used for the normal range. NDBC's copy of these readings carries no flags, so the site reads them from CO-OPS directly.</li>
+  <li><strong>Moorings and shore stations (IOOS, NANOOS):</strong> at moorings, only near-surface sensors are used (the shallowest within 3 m), to match the buoys. Shore stations report every sensor at the surface (0 m), so this check can't tell how deep they are; see the station table for what is known. Readings that failed the operator's automated quality checks are dropped, as are values outside −2 to 40 °C (some records contain fill values) and spikes more than 2 °C away from the median of the surrounding 6 hours.</li>
+  <li><strong>Profiling buoys in Puget Sound and Hood Canal</strong> (University of Washington's Twanoh, Hoodsport, Hansville, Point Wells and Carr Inlet buoys): a sensor travels from the bottom to near the surface every few hours rather than measuring continuously. Each profile's shallowest good reading within 3 m of the surface is used (usually 1.5–3 m), so these stations have a few readings a day instead of hourly ones.</li>
   <li><strong>Stations that stop reporting:</strong> a station whose latest reading is more than 14 days old is shown as a hollow marker with "no water temperature in the past 14 days", and is left out of the heatwave counts.</li>
 </ul>
 
@@ -122,10 +124,11 @@ thead th { background: #EEF0F4; }
 <ol>
   <li><strong>Daily means</strong> are computed from hourly values, counting only days with at least 12 hours of data.</li>
   <li><strong>Reference period:</strong> the World Meteorological Organization's standard 1991–2020 period (WMO 2017), when the station has at least 15 years of data in it. Otherwise all of the station's complete years are used, if there are at least 8. A year counts if it has at least 60 days of data. Stations with shorter records show temperatures without a normal range. Each station's card lists the years its normal range is based on.</li>
+  <li><strong>Tide stations:</strong> normal ranges use data from 2005 on. NOAA's temperature records at many tide stations go back to the 1990s, but the earlier years include multi-year stretches that are several degrees off and not flagged. One exception to the reference period: <strong>Tacoma</strong> uses 2015–2025. Its water ran 1–1.5 °C (about 2–3 °F) colder in 2008–2012 than at any other time in its record, and colder than any other gauge on the coast in those years, and it has stayed about 0.6 °C (1 °F) warmer than its 2005–2020 average every year since 2015. A 2005–2020 normal would flag ordinary recent temperatures there as suspected marine heatwaves.</li>
   <li><strong>Day-of-year statistics:</strong> for each day of the year, all daily means within 5 days either side (an 11-day window) across the reference years are pooled, and their mean and 10th and 90th percentiles are taken. At least 40 daily means are required.</li>
   <li><strong>Smoothing:</strong> each statistic is smoothed with a 31-day running mean that wraps around the end of the year, so that short records don't give a jagged seasonal cycle.</li>
 </ol>
-<p>Historical data comes from NDBC's yearly archives for buoys and tide stations (NDBC's archive of CDIP buoys begins in 2004, and of CO-OPS tide stations in 2005) and from the IOOS sensor catalog for moorings and shore stations. Records of different lengths mean that normal ranges at different stations cover different years; stations whose normal is based on recent years only will partly include recent warming in their "normal".</p>
+<p>Historical data comes from NDBC's yearly archives for buoys (NDBC's archive of CDIP buoys begins in 2004), from the CO-OPS data API's hourly readings for tide stations (without flagged readings), and from the IOOS sensor catalog, NANOOS and the University of Washington for moorings and shore stations. Records of different lengths mean that normal ranges at different stations cover different years; stations whose normal is based on recent years only will partly include recent warming in their "normal".</p>
 
 <h2 id="heatwaves">Suspected marine heatwaves and other labels</h2>
 <p>Each station with a normal range gets one label, checked in this order:</p>
@@ -138,6 +141,7 @@ thead th { background: #EEF0F4; }
     <tr><th scope="row">Suspected marine cold spell</th><td>The daily mean has been below the 10th percentile for at least 5 days in a row, up to the latest day.</td></tr>
     <tr><th scope="row">Warmer or cooler than usual</th><td>The average of the past 24 hours is more than 0.25 °C (0.45 °F) above or below the normal for the date.</td></tr>
     <tr><th scope="row">Near normal</th><td>Within 0.25 °C of the normal.</td></tr>
+    <tr><th scope="row">No status · readings in question</th><td>The station's recent readings look wrong: for example, a lasting jump that nearby stations don't show. Its temperature and chart are still shown, with a note on its card, but it gets no other label and isn't counted. As of November 2026 this applies to Port Townsend, whose readings rose about 2.5 °C (4.5 °F) on June 7, 2026 and have stayed that much higher. Its daily ups and downs didn't change, so the sensor doesn't appear to have moved closer to the surface.</td></tr>
   </tbody>
 </table>
 </div>
@@ -151,7 +155,7 @@ thead th { background: #EEF0F4; }
 </ul>
 
 <h2 id="tides">Tides and flooding</h2>
-<p>The Tides &amp; flooding view shows the 15 NOAA tide stations, using water level data from the CO-OPS data API, collected every hour.</p>
+<p>The Tides &amp; flooding view shows the 24 NOAA tide stations, using water level data from the CO-OPS data API, collected every hour.</p>
 <ul>
   <li><strong>Measured water level:</strong> 6-minute readings, in feet or meters above Mean Lower Low Water (MLLW, the average of each day's lowest tide), the same scale as tide tables. Each card gives how far the water is now from the nearest flood level, and NOAA's next predicted high tide, as published in its tide tables. Recent readings are preliminary: NOAA verifies them weeks to months later and may revise them. Each station's card offers its past 30 days of 6-minute water levels, predicted tides and their difference as a CSV file. Readings that NOAA's automated checks flag for a sudden jump or a value beyond the sensor's limits are dropped. Charts use readings every 30 minutes over the past 30 days.</li>
   <li><strong>Predicted tide:</strong> NOAA's tide predictions for each station, calculated from its tidal constituents (harmonic analysis of its long record), for the past 30 days and the next 48 hours.</li>
@@ -170,7 +174,7 @@ thead th { background: #EEF0F4; }
 <ul>
   <li>Measurements are from fixed points. Conditions between stations, offshore and below the surface can differ.</li>
   <li>Real-time data is preliminary and can contain errors that the automated checks miss; operators may correct it later.</li>
-  <li>Stations differ in sensor depth, setting (open ocean, bay, harbor, pier, seawater intake) and record length, which affects how comparable they are.</li>
+  <li>Stations differ in sensor depth, setting (open ocean, bay, harbor, pier, seawater intake) and record length, which affects how comparable they are. The buoys and moorings measure within 3 m of the surface; tide-station and intake sensors can be several meters deeper, where the water is often cooler and changes less from day to day. Each station is compared only with its own normal, so its labels are fair for that spot, but its temperature is not always the temperature at the surface.</li>
   <li>Normal ranges for stations with short records are less certain, and may partly reflect recent warming.</li>
   <li>The site depends on each network's servers. When a source is unavailable, its stations show no current reading until it returns, and the Tides &amp; flooding view is turned off if NOAA's water level service can't be reached.</li>
 </ul>
@@ -186,9 +190,9 @@ thead th { background: #EEF0F4; }
 <h3>Getting official flood alerts</h3>
 <p>The National Weather Service no longer sends alerts by email, but its coastal flood watches, warnings and advisories can be received these ways:</p>
 <ul>
-  <li><strong>Your county's emergency alerts.</strong> Each California county runs its own alert system (by text, phone call or email), which can include coastal flooding. <a href="https://calalerts.org/signup.html">CalAlerts.org</a>, recommended by the California Governor's Office of Emergency Services, lists every county's sign-up page.</li>
+  <li><strong>Your county's emergency alerts.</strong> Each county runs its own alert system (by text, phone call or email), which can include coastal flooding. Each state lists the sign-up pages: <a href="https://calalerts.org/signup.html">CalAlerts.org</a> for California (recommended by the California Governor's Office of Emergency Services), <a href="https://www.oralert.gov/">OR-Alert</a> for Oregon, and the <a href="https://mil.wa.gov/alerts">Washington Emergency Management Division's alerts page</a> for Washington.</li>
   <li><strong>The FEMA app</strong> (free, for iPhone and Android) sends National Weather Service watches, warnings and advisories for up to five locations you choose. <a href="https://www.fema.gov/about/news-multimedia/mobile-products">FEMA mobile products</a>.</li>
-  <li><strong>The National Weather Service's alert feed</strong> for California coastal flooding, which a feed reader (or a feed-to-email service) can follow: <a href="https://api.weather.gov/alerts/active.atom?area=CA&amp;event=Coastal%20Flood%20Advisory,Coastal%20Flood%20Warning,Coastal%20Flood%20Watch,Coastal%20Flood%20Statement">NWS California coastal flood alerts (Atom feed)</a>.</li>
+  <li><strong>The National Weather Service's alert feed</strong> for coastal flooding in Washington, Oregon and California, which a feed reader (or a feed-to-email service) can follow: <a href="https://api.weather.gov/alerts/active.atom?area=CA,OR,WA&amp;event=Coastal%20Flood%20Advisory,Coastal%20Flood%20Warning,Coastal%20Flood%20Watch,Coastal%20Flood%20Statement">NWS West Coast coastal flood alerts (Atom feed)</a>.</li>
   <li><strong><a href="https://www.weather.gov/nwr/">NOAA Weather Radio</a></strong>, which broadcasts all National Weather Service alerts for your area.</li>
 </ul>
 <p>Wireless Emergency Alerts, which reach phones without signing up, are used for the most dangerous warnings and usually not for coastal flood advisories.</p>
@@ -210,11 +214,13 @@ thead th { background: #EEF0F4; }
   <li>NOAA National Data Buoy Center: real-time and historical standard meteorological data. <a href="https://www.ndbc.noaa.gov">https://www.ndbc.noaa.gov</a></li>
   <li>Scripps Institution of Oceanography, Coastal Data Information Program (CDIP). <a href="https://cdip.ucsd.edu">https://cdip.ucsd.edu</a></li>
   <li>U.S. Integrated Ocean Observing System (IOOS) sensor catalog, ERDDAP server. <a href="https://erddap.sensors.ioos.us/erddap/">https://erddap.sensors.ioos.us/erddap/</a></li>
+  <li>Northwest Association of Networked Ocean Observing Systems (NANOOS), ERDDAP server. <a href="https://erddap.nanoos.org/erddap/">https://erddap.nanoos.org/erddap/</a></li>
+  <li>University of Washington Applied Physics Laboratory, Northwest Environmental Moorings Group, ERDDAP server. <a href="https://nwem.apl.washington.edu/erddap/">https://nwem.apl.washington.edu/erddap/</a></li>
   <li>NOAA Center for Operational Oceanographic Products and Services (CO-OPS): water levels, tide predictions and station flood levels. <a href="https://tidesandcurrents.noaa.gov">https://tidesandcurrents.noaa.gov</a></li>
-  <li>Station operators: MBARI, Scripps Institution of Oceanography, UC Davis Bodega Marine Laboratory, SCCOOS, CeNCOOS, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center and the Exploratorium.</li>
+  <li>Station operators: University of Washington, Oregon State University, NSF Ocean Observatories Initiative, MBARI, Scripps Institution of Oceanography, UC Davis Bodega Marine Laboratory, SCCOOS, CeNCOOS, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center and the Exploratorium.</li>
 </ul>
 
-<p class="updated">Questions about these methods: <a href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. This page was last updated on November 2, 2026.</p>
+<p class="updated">Questions about these methods: <a href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. This page was last updated on November 5, 2026.</p>
 </main>
 </body>
 </html>

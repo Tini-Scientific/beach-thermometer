@@ -1,6 +1,6 @@
 # Beach Thermometer
 
-Real-time surface water temperature at California's NDBC offshore buoys (diamonds),
+Real-time surface water temperature along the coasts of Washington, Oregon and California at NDBC offshore buoys (diamonds),
 CDIP wave buoys (circles), IOOS moorings (pentagons), NOAA CO-OPS tide stations (squares) and IOOS shore stations
 (downward triangles), compared with each station's own climatology (1991–2020 where the
 record allows; see `build_climatology.py`), at [beachthermometer.com](https://beachthermometer.com).
@@ -23,7 +23,7 @@ site on GitHub Pages.
 | `sealevel.py` | Water level, predicted tide and NWS flood levels at the NOAA tide stations (`site/data/sealevel*`) |
 | `build_climatology.py` | One-time setup: `data/stations.csv` and `data/climatology.csv` |
 | `ndbc.py` | Shared NDBC file reader |
-| `ioos.py` | Mooring and shore-station data from the IOOS ERDDAP server (surface sensors only, despiked) |
+| `ioos.py` | Mooring and shore-station data from the IOOS, NANOOS and UW ERDDAP servers (moorings: shallowest sensor within 3 m; despiked) |
 | `data/archive/{station}/{YYYY-MM}.csv` | Hourly water temperature, kept going forward (committed by the job) |
 | `.github/workflows/update.yml` | The hourly schedule |
 
@@ -81,7 +81,10 @@ standard meteorological files), including the Coastal Data Information Program (
 Scripps Institution of Oceanography) wave buoys and NOAA CO-OPS tide stations it distributes; IOOS sensor catalog
 (erddap.sensors.ioos.us) for the MBARI, Scripps and UC Davis Bodega Marine Laboratory
 moorings and the CeNCOOS, SCCOOS, Bodega Marine Laboratory, Cal Poly, UC Santa Cruz, Moss
-Landing, Monterey Bay Aquarium, SFSU Tiburon and Exploratorium shore stations. Basemaps: Esri.
+Landing, Monterey Bay Aquarium, SFSU Tiburon and Exploratorium shore stations; NANOOS's ERDDAP
+(erddap.nanoos.org) for the University of Washington's Cha'Ba and Bellingham Bay moorings, and UW's
+own ERDDAP (nwem.apl.washington.edu) for its ORCA/NPBY profiling buoys in Puget Sound and Hood Canal.
+OOI's Westport and Newport Shelf moorings and OSU/NANOOS CB-06 come through NDBC. Basemaps: Esri.
 
 ## Privacy
 

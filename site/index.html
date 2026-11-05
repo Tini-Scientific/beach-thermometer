@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Beach Thermometer</title>
-<meta name="description" content="Hourly water temperatures and water levels from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves and high water.">
+<meta name="description" content="Hourly water temperatures and water levels from buoys, moorings, tide gauges, and shore stations along the coasts of Washington, Oregon, and California, together on one map to track marine heatwaves and high water.">
 <!-- link previews (iMessage, Slack, social media). Absolute URLs: switch to https://beachthermometer.com/ with the custom domain -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Beach Thermometer">
 <meta property="og:title" content="Beach Thermometer">
-<meta property="og:description" content="Hourly water temperatures and water levels from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves and high water.">
+<meta property="og:description" content="Hourly water temperatures and water levels from buoys, moorings, tide gauges, and shore stations along the coasts of Washington, Oregon, and California, together on one map to track marine heatwaves and high water.">
 <meta property="og:url" content="https://tini-scientific.github.io/beach-thermometer/">
 <meta property="og:image" content="https://tini-scientific.github.io/beach-thermometer/assets/preview.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Map of California's coast with water temperature stations colored by temperature">
+<meta property="og:image:alt" content="Map of the West Coast with water temperature stations colored by temperature">
 <meta name="twitter:card" content="summary_large_image">
 <!-- lets feed readers find the daily summary from the site's address -->
 <link rel="alternate" type="application/atom+xml" title="Beach Thermometer: daily marine heatwave summary" href="feed.xml">
@@ -86,7 +86,7 @@ body { display: flex; flex-direction: column; }
     .bt-page-header h1 { font-size: 22px; }
     .bt-page-header p { font-size: 12px; margin-top: 3px; }
 }
-.bt-credits img { height: 34px; width: auto; display: block; margin-top: 2px; }
+.bt-credits img { height: 34px; width: auto; display: block; margin-top: 2px; align-self: flex-start; }  /* not stretched to the links' width */
 .bt-page-links { color: var(--muted); font-size: 10.5px; margin-top: 6px; }
 .bt-a11y-link { color: var(--muted); font-size: 10.5px; white-space: nowrap; }  /* lines wrap between links, not inside one */
 .bt-a11y-link:hover { color: white; }
@@ -255,6 +255,7 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
 .bt-temp.stale { color: #9CA3AF; }
 .bt-stale-age { color: var(--heatwave-red); font-weight: 700; }
 .bt-note { color: #6B7280; font-size: 12px; }
+.bt-suspect { margin: 8px 0 0; line-height: 1.45; color: #374151; }
 .bt-pill {
     display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 11px;
     background: #EEF0F4; color: #4B5563;
@@ -344,13 +345,13 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
 <header class="bt-page-header bt-font">
   <div class="bt-page-title">
     <h1><span class="bt-title-text">Beach Thermometer</span> <a class="bt-exp" href="methods.html">Experimental</a></h1>
-    <p>Hourly water temperatures and water levels from California's buoys, moorings, tide gauges, and shore stations, together on one map to track marine heatwaves and high water.</p>
+    <p>Hourly water temperatures and water levels from buoys, moorings, tide gauges, and shore stations along the coasts of Washington, Oregon, and California, together on one map to track marine heatwaves and high water.</p>
   </div>
   <div class="bt-credits">
     <button class="bt-sources" aria-expanded="false" aria-controls="bt-data-by">Data sources</button>
     <div class="data" id="bt-data-by">
       <div class="bt-credit-label">Data by</div>
-      <div class="bt-credit-box">NOAA (NDBC, CO-OPS, U.S. IOOS) · Scripps Institution of Oceanography (CDIP) · MBARI · UC Davis Bodega Marine Laboratory · SCCOOS · CeNCOOS · Cal Poly Humboldt · Cal Poly San Luis Obispo · UC Santa Cruz · Moss Landing Marine Laboratories · Monterey Bay Aquarium · SFSU Romberg Tiburon Center · Exploratorium</div>
+      <div class="bt-credit-box">NOAA (NDBC, CO-OPS, U.S. IOOS) · Scripps Institution of Oceanography (CDIP) · NANOOS · University of Washington · Oregon State University · NSF Ocean Observatories Initiative · MBARI · UC Davis Bodega Marine Laboratory · SCCOOS · CeNCOOS · Cal Poly Humboldt · Cal Poly San Luis Obispo · UC Santa Cruz · Moss Landing Marine Laboratories · Monterey Bay Aquarium · SFSU Romberg Tiburon Center · Exploratorium</div>
     </div>
     <div class="by">
       <div class="bt-credit-label">Dashboard by</div>
@@ -378,7 +379,7 @@ const TZ = 'America/Los_Angeles';
 const NDBC = 'https://www.ndbc.noaa.gov';
 Chart.defaults.font.family = "'Montserrat', 'Helvetica Neue', sans-serif";
 // cmocean 'thermal' sampled at 15 evenly spaced points; markers span TEMP_RANGE_C (40-80 °F,
-// California's typical range with room for heatwaves; readings beyond it take the end colors)
+// the West Coast's typical range with room for heatwaves; readings beyond it take the end colors)
 const THERMAL = ['#042333', '#092f59', '#1f3487', '#4635a0', '#634198', '#7c4d90', '#95568a', '#b15f82',
                  '#cc6873', '#e4735f', '#f5864a', '#fba13d', '#fabe3f', '#f4dc4b', '#e8fa5b'];
 const TEMP_RANGE_C = [(40 - 32) * 5 / 9, (80 - 32) * 5 / 9];
@@ -466,6 +467,7 @@ const STATUS = {
     cooler: () => ['Cooler than usual', ''],
     normal: () => ['Near normal', ''],
     noclim: () => ['No normal yet · record shorter than 8 years', ''],
+    suspect: () => ['No status · readings in question', ''],
     stale: () => [`No data in the past ${latest.stale_days} days`, ''],
 };
 // last reading too old to describe the water now (update.py's STALE_DAYS): shown gray
@@ -482,8 +484,14 @@ const buoyLabel = s => ({cdip: `Wave buoy · CDIP ${s.cdip} / NDBC ${s.id}`, ndb
 const place = s => (s.long_name || '').replace(/\s*\(\d+\)$/, '').replace(/^[A-Z0-9 .'-]+?(?: - |\s{2,})/, '')
                                       .replace(/(\d+)\s*NM\b/, '$1 nm').trim();
 const link = (href, text) => `<a class="bt-source" style="display:inline;" href="${href}" target="_blank">${text}</a>`;
+// Washington moorings come from NANOOS's server, and UW's profiling buoys from UW's own (see ioos.py)
+const NANOOS_IDS = ['chaba_hydro', 'bellinghambay_surfhydro'];
+const erddapLink = s => s.id.endsWith('_L3_depthgridded_025')
+    ? link(`https://nwem.apl.washington.edu/erddap/griddap/${s.id}.html`, 'University of Washington (NANOOS)')
+    : NANOOS_IDS.includes(s.id) ? link(`https://erddap.nanoos.org/erddap/tabledap/${s.id}.html`, 'NANOOS')
+    : link(`https://erddap.sensors.ioos.us/erddap/tabledap/${s.id}.html`, 'IOOS sensor catalog');
 const dataLinks = s => `<span>Data: `
-    + (s.type === 'ioos' || s.type === 'shore' ? link(`https://erddap.sensors.ioos.us/erddap/tabledap/${s.id}.html`, 'IOOS sensor catalog')
+    + (s.type === 'ioos' || s.type === 'shore' ? erddapLink(s)
        : (s.type === 'cdip' ? link(`https://cdip.ucsd.edu/m/products/?stn=${s.cdip}p1`, `CDIP ${s.cdip}`) + ' / '
           : s.type === 'tide' ? link(`https://tidesandcurrents.noaa.gov/stationhome.html?id=${s.coops}`, `CO-OPS ${s.coops}`) + ' / '
           : '')
@@ -515,7 +523,8 @@ function popupHtml(s) {
         + ` · ${when}</div></div></div>`
         + `<div class="bt-sec"><span class="bt-pill ${pillClass}">${pill}</span>`
         + (hasAnom ? `<div class="bt-anom"><b>${bothUnits(s.anom_c, true)}</b> vs. normal for this date `
-                     + `<span class="bt-note">(past 24 h)</span></div>` : '') + `</div>`
+                     + `<span class="bt-note">(past 24 h)</span></div>` : '')
+        + (s.note ? `<p class="bt-note bt-suspect">${s.note}</p>` : '') + `</div>`
         + `<div class="bt-sec"><div class="bt-seg" role="group" aria-label="Chart time span">${seg}</div>`
         + `<div class="bt-chart"><canvas id="bt-canvas-${s.id}" role="img" aria-label="Water temperature chart, described below"></canvas>`
         + `<div class="bt-chart-msg" id="bt-msg-${s.id}">Loading…</div></div>`
@@ -935,7 +944,8 @@ const baseLayers = {
     'Ocean / Bathymetry': L.tileLayer(esri('Ocean/World_Ocean_Base'), {attribution: 'Esri World Ocean Base', maxZoom: 13}),
     'Satellite': L.tileLayer(esri('World_Imagery'), {attribution: 'Esri World Imagery', maxZoom: 19}),
 };
-const map = L.map('map', {layers: [baseLayers['Roads']], zoomControl: false}).setView([36.6, -121.5], 6);
+// opens on the whole coast, Puget Sound to San Diego, whatever the screen size
+const map = L.map('map', {layers: [baseLayers['Roads']], zoomControl: false}).fitBounds([[32.4, -125.2], [48.9, -122.2]]);
 // top right: Temperature / Sea level switch, color bar, then units toggle; bottom right: zoom buttons above the base-map choice
 const ModeCtrl = L.Control.extend({
     options: {position: 'topright'},
@@ -1088,7 +1098,13 @@ function openCardChart(s) {
 function openStation(id) {
     opener = document.activeElement;  // the table row's button
     if (useSheet()) openSheet(latest.stations.find(s => s.id === id));
-    else markers[id].openPopup();
+    else {
+        // a card taller than the map would pan the map until the station is off screen (far north for
+        // Washington): cap its height so it scrolls inside, leaving room for the controls along the top
+        // (autoPanPaddingTopLeft) and the station's marker below the card
+        markers[id].getPopup().options.maxHeight = Math.max(200, map.getSize().y - 210);  // 95 top padding, 40 card margins, tip, marker
+        markers[id].openPopup();
+    }
 }
 const hiddenTypes = new Set();
 // marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC), pentagon (IOOS mooring),

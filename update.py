@@ -1,7 +1,9 @@
 """Hourly update for beachthermometer.com (run by .github/workflows/update.yml).
 
-1. Fetch each buoy's or tide station's NDBC realtime2 file (the past 45 days,
-   updated about hourly), or each mooring's or shore station's surface sensor from
+1. Fetch each buoy's NDBC realtime2 file (the past 45 days, updated about hourly),
+   each tide station's readings from the CO-OPS API (the past 45 days, without the
+   ones CO-OPS's automatic checks flag; the archive's copy of that window is replaced,
+   so readings flagged later drop out), or each mooring's or shore station's surface sensor from
    the IOOS ERDDAP server (ioos.py), and merge its water temperatures, as hourly means, into the archive:
    data/archive/{station}/{YYYY-MM}.csv. Only the current month's files change
    from hour to hour, so the committed history stays small.
@@ -17,7 +19,8 @@
    the 10th), otherwise warmer / cooler than usual when the 24 h anomaly is
    beyond ±NEAR_NORMAL_C, else near normal. Buoys whose record is too short
    for a climatology (see build_climatology.py) get status 'noclim', and
-   buoys whose latest reading is more than STALE_DAYS old get 'stale'.
+   buoys whose latest reading is more than STALE_DAYS old get 'stale', and stations
+   listed in SUSPECT (readings in question) get 'suspect'.
 3. Once a day, add an entry to the daily marine heatwave summary feed
    (site/feed.xml; see feed.py).
 4. Fetch sea level at the tide stations (site/data/sealevel*; see sealevel.py).
@@ -32,7 +35,7 @@ import pandas as pd
 
 import ioos
 from feed import update_feed
-from sealevel import update_sealevel
+from sealevel import update_sealevel, water_temperature
 from ndbc import NDBC_URL, http, read_stdmet
 
 RECENT_DAYS = 45
@@ -62,8 +65,23 @@ def streak(flags):
     return n
 
 
-def merge_into_archive(sid, hourly):
-    """Merge hourly means into the station's monthly archive files."""
+# stations whose recent readings look wrong (a lasting jump that nearby stations don't show): from the
+# date given (UTC) they get status 'suspect', with the note on their card, instead of a heatwave or
+# cold-spell status. Remove an entry once the data are corrected or the readings look right again.
+SUSPECT = {
+    # 2026-06-07: rose ~2.5 °C over one afternoon after a day without temperature readings and has stayed
+    # ~2.5 °C above every year since 2005, with unchanged daily swings (so not a shallower sensor);
+    # Port Angeles, New Dungeness and Point Wells show no such jump
+    'PTWW1': ('2026-06-07', 'Readings jumped about 4.5 °F (2.5 °C) on June 7, 2026, and have stayed that much '
+                            'higher, while nearby stations show no such jump. Until this is resolved, no heatwave '
+                            'or cold-spell status is given here.'),
+}
+
+
+def merge_into_archive(sid, hourly, replace=False):
+    """Merge hourly means into the station's monthly archive files. With `replace`, the archived hours
+    between the first and last of `hourly` are replaced rather than merged, so readings since dropped
+    (e.g. ones CO-OPS has flagged since) leave the archive too."""
     folder = os.path.join(ARCHIVE, sid)
     os.makedirs(folder, exist_ok=True)
     for month, part in hourly.groupby(hourly.index.strftime('%Y-%m')):
@@ -71,6 +89,8 @@ def merge_into_archive(sid, hourly):
         if os.path.exists(path):
             old = pd.read_csv(path, index_col=0)['wtmp_c']
             old.index = pd.to_datetime(old.index, utc=True)
+            if replace:
+                old = old[(old.index < hourly.index[0]) | (old.index > hourly.index[-1])]
             part = pd.concat([old, part])
             part = part[~part.index.duplicated(keep='last')].sort_index()
         part.round(3).rename_axis('time_utc').to_frame('wtmp_c').to_csv(path)
@@ -90,6 +110,18 @@ def read_archive(sid, since):
     return s[s.index >= since]
 
 
+def coops_temperature(coops, now, days):
+    """A tide station's water temperature (°C) for the past `days` from CO-OPS, 6-minute readings
+    (in 31-day requests) without the ones its automatic checks flag; empty when unavailable."""
+    parts, end = [], now
+    while end > now - pd.Timedelta(days=days):
+        begin = max(end - pd.Timedelta(days=30), now - pd.Timedelta(days=days))
+        parts.append(water_temperature(coops, begin, end))
+        end = begin
+    s = pd.concat(parts).sort_index()
+    return s[~s.index.duplicated()] if len(s) else read_stdmet('')
+
+
 def main():
     now = pd.Timestamp.now(tz='UTC')
     since = now - pd.Timedelta(days=RECENT_DAYS)
@@ -103,11 +135,13 @@ def main():
     for sid, info in stations.iterrows():
         if info['type'] in ('ioos', 'shore'):
             raw = ioos.recent(sid, RECENT_DAYS, info['erddap_var'])
+        elif info['type'] == 'tide':
+            raw = coops_temperature(info['coops'], now, RECENT_DAYS)
         else:
             r = http.get(f'{NDBC_URL}/data/realtime2/{sid}.txt', timeout=60)
             raw = read_stdmet(r.text) if r.status_code == 200 else read_stdmet('')
         if len(raw):
-            merge_into_archive(sid, raw.resample('h').mean().dropna())
+            merge_into_archive(sid, raw.resample('h').mean().dropna(), replace=info['type'] == 'tide')
         hourly = read_archive(sid, since)
         cs = clim[clim['station'] == sid].set_index('doy').reindex(range(1, 367))
         has_clim = pd.notna(info['clim_start'])
@@ -148,6 +182,10 @@ def main():
                           'anom_c': round(float(anom), 2), 'status': status, 'hot_days': hot, 'cold_days': cold,
                           # a streak as long as the record may have started earlier
                           'streak_is_whole_record': bool(max(hot, cold) == len(daily))})
+        if sid in SUSPECT and 'last_time_ms' in entry and entry['last_time_ms'] >= pd.Timestamp(SUSPECT[sid][0], tz='UTC').timestamp() * 1000:
+            # readings in question: the temperature is shown, but no status (and no heatwave count)
+            entry = {k: v for k, v in entry.items() if k not in ('anom_c', 'hot_days', 'cold_days', 'streak_is_whole_record')}
+            entry.update({'status': 'suspect', 'note': SUSPECT[sid][1]})
         if 'last_time_ms' in entry and now.timestamp() * 1000 - entry['last_time_ms'] > STALE_DAYS * 864e5:
             # too old to describe the water now: shown gray, and kept out of the heatwave count
             entry = {k: v for k, v in entry.items() if k not in ('anom_c', 'hot_days', 'cold_days', 'streak_is_whole_record')}
@@ -165,7 +203,7 @@ def main():
         json.dump({'generated_ms': int(now.timestamp() * 1000), 'recent_days': RECENT_DAYS, 'stale_days': STALE_DAYS,
                    'stations': entries}, f, indent=1, allow_nan=False)  # NaN isn't valid JSON for browsers
     counts = {s: sum(e.get('status') == s for e in entries)
-              for s in ['heatwave', 'warmer', 'normal', 'cooler', 'coldspell', 'noclim', 'stale']}
+              for s in ['heatwave', 'warmer', 'normal', 'cooler', 'coldspell', 'noclim', 'suspect', 'stale']}
     print(f"{now:%Y-%m-%d %H:%M} UTC: {sum('status' in e for e in entries)}/{len(entries)} buoys reporting; {counts}")
     update_feed(entries, now)
     try:

@@ -21,13 +21,16 @@ buoy has at least MIN_BASE_YEARS years of data in it; otherwise every year
 available through LAST_YEAR, when that's at least MIN_YEARS years; otherwise
 none (the site then shows the temperature without a climatology). NDBC's
 archive of CDIP buoys starts in 2004, so the older CDIP buoys use 2004-2020
-and the newer ones their whole record.
+and the newer ones their whole record. Stations in PERIOD_OVERRIDES (tide
+stations only), whose record has a lasting shift, use the years given there.
 
-Buoy and tide-station water temperature comes from NDBC's yearly
-standard-meteorological archives (CDIP buoys and CO-OPS tide stations are
-archived there under their NDBC IDs; NDBC's CO-OPS archive starts in 2005); mooring
-and shore-station water temperature from the IOOS ERDDAP server as daily means
-over the whole record. Both are cached in data/historical/ (not committed). Re-run only to add stations or change the
+Buoy water temperature comes from NDBC's yearly standard-meteorological
+archives (CDIP buoys are archived there under their NDBC IDs); tide-station
+water temperature from the CO-OPS API's hourly readings from TIDE_FIRST_YEAR,
+without the ones its automatic checks flag (as on the live site; NDBC's copy
+carries no flags);
+mooring and shore-station water temperature from the IOOS ERDDAP server as
+daily means over the whole record. All are cached in data/historical/ (not committed). Re-run only to add stations or change the
 method.
 """
 import gzip
@@ -40,14 +43,24 @@ import pandas as pd
 
 import ioos
 from ndbc import NDBC_URL, http, read_stdmet
+from sealevel import water_temperature
 
-# NDBC offshore buoys: NDBC ID -> short name
-NDBC_STATIONS = {'46027': 'St Georges', '46022': 'Eel River', '46014': 'Point Arena', '46013': 'Bodega Bay',
+# NDBC offshore buoys: NDBC ID -> short name. Includes moorings that report through NDBC (OOI's
+# Westport and Newport Shelf, OSU/NANOOS CB-06). 46087 is named for Cape Flattery and 46015 keeps
+# Port Orford, so the tide stations there are Neah Bay and Port Orford Harbor.
+NDBC_STATIONS = {'46087': 'Cape Flattery', '46088': 'New Dungeness', '46041': 'Cape Elizabeth',
+                 '46099': 'OOI Westport Shelf', '46029': 'Columbia River Bar', '46089': 'Tillamook',
+                 '46050': 'Stonewall Bank', '46097': 'OOI Newport Shelf', '46128': 'Coos Bay (CB-06)',
+                 '46015': 'Port Orford',
+                 '46027': 'St Georges', '46022': 'Eel River', '46014': 'Point Arena', '46013': 'Bodega Bay',
                  '46026': 'San Francisco', '46012': 'Half Moon Bay', '46042': 'Monterey Bay',
                  '46028': 'Cape San Martin', '46011': 'Santa Maria', '46054': 'West Santa Barbara',
                  '46053': 'East Santa Barbara', '46025': 'Santa Monica Basin', '46069': 'South Santa Rosa Island'}
 # CDIP wave buoys: NDBC ID -> (CDIP station number, short name)
-CDIP_STATIONS = {'46244': ('168', 'Humboldt Bay North Spit'), '46213': ('094', 'Cape Mendocino'),
+CDIP_STATIONS = {'46267': ('248', 'Angeles Point'), '46211': ('036', 'Grays Harbor'),
+                 '46243': ('162', 'Clatsop Spit'), '46248': ('179', 'Astoria Canyon'),
+                 '46278': ('270', 'Tillamook Bay South Jetty'), '46229': ('139', 'Umpqua Offshore'),
+                 '46244': ('168', 'Humboldt Bay North Spit'), '46213': ('094', 'Cape Mendocino'),
                  '46214': ('029', 'Point Reyes'), '46237': ('142', 'San Francisco Bar'),
                  '46240': ('158', 'Cabrillo Point'), '46239': ('157', 'Point Sur'),
                  '46215': ('076', 'Diablo Canyon'), '46259': ('222', 'Santa Lucia Escarpment'),
@@ -63,7 +76,16 @@ CDIP_STATIONS = {'46244': ('168', 'Humboldt Bay North Spit'), '46213': ('094', '
 # NOAA CO-OPS tide stations (water temperature sensor on the tide gauge, ~1-2 m below
 # low water): NDBC ID -> (CO-OPS station number, short name, lat, lon). Names differ from
 # CO-OPS's where they'd repeat a buoy's (San Francisco, Point Reyes, North Spit).
-TIDE_STATIONS = {'CECC1': ('9419750', 'Crescent City Harbor', 41.746, -124.184),
+TIDE_STATIONS = {'NEAW1': ('9443090', 'Neah Bay', 48.371, -124.602),
+                 'PTAW1': ('9444090', 'Port Angeles', 48.125, -123.44),
+                 'PTWW1': ('9444900', 'Port Townsend', 48.111, -122.76),
+                 'LAPW1': ('9442396', 'La Push', 47.913, -124.636),
+                 'TCNW1': ('9446484', 'Tacoma', 47.267, -122.413),
+                 'WPTW1': ('9441102', 'Westport', 46.904, -124.105),
+                 'TOKW1': ('9440910', 'Toke Point (Willapa Bay)', 46.708, -123.967),
+                 'SBEO3': ('9435380', 'South Beach (Newport)', 44.625, -124.045),
+                 'PORO3': ('9431647', 'Port Orford Harbor', 42.739, -124.498),
+                 'CECC1': ('9419750', 'Crescent City Harbor', 41.746, -124.184),
                  'HBYC1': ('9418767', 'Humboldt Bay (North Spit)', 40.766, -124.217),
                  'ANVC1': ('9416841', 'Arena Cove', 38.915, -123.711),
                  'PCOC1': ('9415144', 'Port Chicago', 38.056, -122.04),
@@ -84,6 +106,15 @@ FALLBACK_POSITIONS = {'46240': (36.626, -121.907)}
 
 # IOOS moorings with a surface sensor: ERDDAP dataset ID -> (short name, operator, lat, lon)
 IOOS_STATIONS = {
+    # Washington: NANOOS's server (Cha'Ba, Bellingham Bay) and UW's profiling buoys (see ioos.py).
+    # Dabob Bay (orca4) is left out: no casts since May 2025.
+    'bellinghambay_surfhydro': ("Bellingham Bay (Se'lhaem)", 'University of Washington / NANOOS', 48.7237, -122.5765),
+    'chaba_hydro': ("Cha'Ba (off La Push)", 'University of Washington / NANOOS', 47.9662, -124.95),
+    'orca3_L3_depthgridded_025': ('Hansville (Hood Canal)', 'University of Washington / NANOOS', 47.9073, -122.627),
+    'npby1_L3_depthgridded_025': ('Point Wells', 'University of Washington / NANOOS', 47.7612, -122.3972),
+    'orca2_L3_depthgridded_025': ('Hoodsport (Hood Canal)', 'University of Washington / NANOOS', 47.422, -123.113),
+    'orca1_L3_depthgridded_025': ('Twanoh (Hood Canal)', 'University of Washington / NANOOS', 47.375, -123.0083),
+    'npby2_L3_depthgridded_025': ('Carr Inlet', 'University of Washington / NANOOS', 47.28, -122.73),
     'bodega-marine-laboratory-bml-': ('Bodega Marine Lab Buoy', 'UC Davis Bodega Marine Laboratory', 38.3118, -123.083),
     'oa2-mbari-buoy': ('MBARI OA2', 'MBARI', 37.1109, -122.3),
     'org_mbari_m1': ('MBARI M1', 'MBARI', 36.7511, -122.0292),
@@ -137,6 +168,16 @@ CLIM_HALF_WINDOW_DAYS = 5
 MIN_HOURS_PER_DAY = 12
 MIN_DAYS_PER_DOY = 40  # a day of year needs this many daily means in its window
 SMOOTH_DAYS = 31
+# CO-OPS's water temperature records go back to the 1990s at most stations, but before 2005 they hold
+# long stretches its flags don't catch (e.g. Los Angeles Harbor ~4 °C cold in 1999-2000, South Beach
+# ~5.6 °C cold in 2004, Humboldt Bay ~5.9 °C warm in 2000, a 2 °C step at Point Reyes 1999-2006), so
+# tide-station climatologies start in 2005, as NDBC's archive of these stations does
+TIDE_FIRST_YEAR = 2005
+# stations whose record has a lasting shift, so the general rule would give a misleading normal: years used
+# instead. Tacoma ran 1-1.5 °C colder in 2008-2012 than in any other stretch (colder than every other
+# gauge on the coast) and has stayed ~0.6 °C above its 2005-2020 mean every year since 2015, so a
+# 2005-2020 normal flagged ordinary recent autumns as suspected marine heatwaves
+PERIOD_OVERRIDES = {'TCNW1': (2015, 2025)}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data')
@@ -190,6 +231,27 @@ def daily_history(sid, years):
     return w.resample('D').mean()[n >= MIN_HOURS_PER_DAY].dropna()
 
 
+def coops_history(coops, years):
+    """A tide station's daily-mean water temperature from CO-OPS's hourly readings, without the ones its
+    automatic checks flag; each year cached in data/historical/ (an empty file for a year with none)."""
+    parts = []
+    for year in years:
+        path = os.path.join(HIST, f'coops_{coops}_{year}.csv')
+        if not os.path.exists(path):
+            s = water_temperature(coops, pd.Timestamp(f'{year}-01-01'), pd.Timestamp(f'{year}-12-31 23:00'), 'h')
+            s.rename_axis('time_utc').to_csv(path)
+            time.sleep(0.2)  # be gentle with CO-OPS
+        df = pd.read_csv(path, index_col=0)
+        if len(df):
+            parts.append(pd.Series(df['wtmp_c'].values, index=pd.to_datetime(df.index, utc=True)))
+    if not parts:
+        return pd.Series(dtype=float, index=pd.DatetimeIndex([], tz='UTC'))
+    w = pd.concat(parts)
+    w = w[~w.index.duplicated()].resample('h').mean()
+    n = w.resample('D').count()
+    return w.resample('D').mean()[n >= MIN_HOURS_PER_DAY].dropna()
+
+
 def years_with_data(daily):
     counts = daily.groupby(daily.index.year).size()
     return sorted(counts[counts >= MIN_DAYS_PER_YEAR].index)
@@ -223,6 +285,15 @@ def pick_period(daily_base, get_all):
 
 
 def choose_period(sid, kind):
+    if sid in PERIOD_OVERRIDES:
+        first, last = PERIOD_OVERRIDES[sid]
+        daily = coops_history(TIDE_STATIONS[sid][0], range(first, last + 1))
+        years = years_with_data(daily)
+        return daily[daily.index.year.isin(years)], (years[0], years[-1])
+    if kind == 'tide':
+        coops = TIDE_STATIONS[sid][0]
+        return pick_period(coops_history(coops, range(TIDE_FIRST_YEAR, BASE_YEARS[1] + 1)),
+                           lambda: coops_history(coops, range(TIDE_FIRST_YEAR, LAST_YEAR + 1)))
     if kind in ('ioos', 'shore'):
         daily, _ = ioos_history(sid)
         return pick_period(daily[(daily.index.year >= BASE_YEARS[0]) & (daily.index.year <= BASE_YEARS[1])],

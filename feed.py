@@ -25,7 +25,9 @@ TZ = 'America/Los_Angeles'
 POST_HOUR = 7
 MAX_ENTRIES = 30
 # coastal regions for the continuing list, by latitude: the southern edge of each (north to south)
-REGIONS = [('North Coast', 38.2), ('San Francisco Bay Area', 37.2), ('Central Coast', 34.6), ('Southern California', -90)]
+# (Washington includes Puget Sound and the Strait; the Columbia River mouth, ~46.25 N, is the state line)
+REGIONS = [('Washington', 46.25), ('Oregon', 42.0), ('Northern California', 38.2), ('San Francisco Bay Area', 37.2),
+           ('Central California', 34.6), ('Southern California', -90)]
 OTHER_LINKS = [
     ('NOAA California Current Marine Heatwave Tracker',
      'https://www.integratedecosystemassessment.noaa.gov/regions/california-current/california-current-marine-heatwave-tracker-blobtracker'),
@@ -34,6 +36,7 @@ OTHER_LINKS = [
     ('CeNCOOS marine heatwave', 'https://www.cencoos.org/marine-heatwave/'),
     ('CalOOS ocean sensor dashboard (SCCOOS and CeNCOOS)',
      'https://data.caloos.org/#dashboards/sensors/6f6e75db-710c-491a-87d6-af4a4d065537/by-station?selected=110889'),
+    ('NANOOS Visualization System (Washington and Oregon ocean data)', 'https://nvs.nanoos.org/'),
 ]
 TYPE_ONE = {'ndbc': 'Offshore buoy', 'cdip': 'Wave buoy', 'ioos': 'Mooring', 'tide': 'Tide station', 'shore': 'Shore station'}
 
@@ -104,7 +107,7 @@ def make_entry(entries, previous, now):
     parts.append(f'<p>A suspected marine heatwave is at least 5 days in a row with the daily mean above the '
                  f'station\'s 90th percentile for the date. These flags are automated, not official warnings. '
                  f'<a href="{SITE_URL}">Open the map</a>.</p>')
-    parts.append('<p>Marine heatwave products from NOAA and California\'s ocean observing systems:</p><ul>'
+    parts.append('<p>Marine heatwave products from NOAA and the West Coast\'s ocean observing systems:</p><ul>'
                  + ''.join(f'<li><a href="{url}">{escape(label)}</a></li>' for label, url in OTHER_LINKS) + '</ul>')
     # a quiet credit, like the map's "Dashboard by": small purple-text logo (the site's white-text one would vanish
     # on a white email) and a line of small text, which also carries the link when an email app blocks images
@@ -132,7 +135,7 @@ def write_atom(feed_entries):
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:tiniscientific.com,2026:beach-thermometer</id>
   <title>Beach Thermometer: daily marine heatwave summary</title>
-  <subtitle>Suspected marine heatwaves at California's buoys, moorings, tide gauges and shore stations: which started, ended or are continuing.</subtitle>
+  <subtitle>Suspected marine heatwaves at West Coast buoys, moorings, tide gauges and shore stations: which started, ended or are continuing.</subtitle>
   <link rel="self" type="application/atom+xml" href="{SITE_URL}feed.xml"/>
   <link rel="alternate" type="text/html" href="{SITE_URL}"/>
   <author><name>Tini Scientific</name><email>waves@tiniscientific.com</email></author>
