@@ -188,6 +188,17 @@ body.imperial .bt-cbar-ticks.f { display: block; }
     .bt-cbar-key .bt-mk { width: 26px; height: 26px; filter: drop-shadow(0 0 1.2px rgba(0,0,0,0.7)); }
 }
 
+/* state buttons in the list header: one is on (filled), like the view and unit switches */
+.bt-states { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 14px 0; }
+.bt-states button {
+    flex: 1 1 auto; font-family: inherit; font-size: 11px; font-weight: 600; color: white; cursor: pointer;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 8px; padding: 5px 8px;
+}
+.bt-states button[aria-pressed="true"] { background: white; color: var(--ink); border-color: white; }
+.bt-states button .n { font-weight: 400; color: var(--silver); margin-left: 2px; }
+.bt-states button[aria-pressed="true"] .n { color: #4B5563; }
+.bt-list.collapsed .bt-states { display: none; }
+
 /* type filter buttons in the list header (also the legend) */
 .bt-filter { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 6px; border-bottom: 1px solid var(--hairline); }
 .bt-filter button {
@@ -195,6 +206,9 @@ body.imperial .bt-cbar-ticks.f { display: block; }
     background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 8px; padding: 4px 8px; text-align: left;
 }
 .bt-filter button.off { opacity: 0.4; }
+/* All types: a blank the width of the shapes below, so the labels line up */
+.bt-all-mk { width: 14px; height: 14px; flex: none; }
+.bt-filter [data-type="all"] { font-weight: 600; }
 .bt-filter button .n { margin-left: auto; color: var(--silver); }
 .bt-hw-note { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--silver); padding: 2px 9px; }
 .bt-list.collapsed .bt-filter { display: none; }
@@ -945,7 +959,9 @@ const baseLayers = {
     'Satellite': L.tileLayer(esri('World_Imagery'), {attribution: 'Esri World Imagery', maxZoom: 19}),
 };
 // opens on the whole coast, Puget Sound to San Diego, whatever the screen size
-const map = L.map('map', {layers: [baseLayers['Roads']], zoomControl: false}).fitBounds([[32.4, -125.2], [48.9, -122.2]]);
+// the whole coast: the start view, and the list's All button
+const HOME = [[32.4, -125.2], [48.9, -122.2]];
+const map = L.map('map', {layers: [baseLayers['Roads']], zoomControl: false}).fitBounds(HOME);
 // top right: Temperature / Sea level switch, color bar, then units toggle; bottom right: zoom buttons above the base-map choice
 const ModeCtrl = L.Control.extend({
     options: {position: 'topright'},
@@ -1107,6 +1123,15 @@ function openStation(id) {
     }
 }
 const hiddenTypes = new Set();
+// the list's state buttons: by latitude, with the borders the daily email uses (the Columbia River at 46.25°N,
+// the California-Oregon line at 42°N), so offshore buoys go with the state they sit off
+const STATES = {all: 'All', WA: 'Washington', OR: 'Oregon', CA: 'California'};
+// each state's coast, north to south (with a little of its neighbors), so zooming to a state shows all of it,
+// not just the span of its stations (Washington's southernmost is ~50 km north of the Columbia River)
+const STATE_LATS = {WA: [49.1, 45.9], OR: [46.4, 41.8], CA: [42.1, 32.4]};
+const stateOf = s => (s.lat >= 46.25 ? 'WA' : s.lat >= 42 ? 'OR' : 'CA');
+let shownState = 'all';
+const inState = s => shownState === 'all' || stateOf(s) === shownState;
 // marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC), pentagon (IOOS mooring),
 // square (tide) or downward triangle (shore), radius r
 function shape(type, r, attrs) {
@@ -1203,7 +1228,8 @@ const ListCtrl = L.Control.extend({
             if (na || nb) return na - nb;
             return sortDir * (typeof va === 'string' ? va.localeCompare(vb) : va - vb);
         };
-        const filters = Object.entries(TYPES).map(([t, label]) =>
+        const filters = `<button data-type="all" aria-pressed="true"><span class="bt-all-mk" aria-hidden="true"></span>All types`
+            + `<span class="n">${stationList.length}</span></button>` + Object.entries(TYPES).map(([t, label]) =>
             `<button data-type="${t}" aria-pressed="true">${markerHtml({type: t, legend: true}, true)}${label}`
             + `<span class="n">${stationList.filter(s => s.type === t).length}</span></button>`).join('');
         // aria-sort of each column in its natural order (dir 1)
@@ -1225,6 +1251,9 @@ const ListCtrl = L.Control.extend({
                       + `<td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>`
                       + `<tr><th scope="row" class="bt-label">Updated</th><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>`
                       + `</table></div>`
+                      + `<div class="bt-states" role="group" aria-label="Show stations in">`
+                      + Object.entries(STATES).map(([k, label]) => `<button data-state="${k}" aria-pressed="${k === shownState}">${label} <span class="n"></span></button>`).join('')
+                      + `</div>`
                       + `<div class="bt-filter">${filters}<div class="bt-hw-note">`
                       + `${markerHtml({type: 'cdip', legend: true, status: 'heatwave'}, true)}Suspected marine heatwave</div></div>`
                       + `<div class="bt-list-rows"><table class="bt-stations"><caption class="bt-sr"></caption>`
@@ -1248,7 +1277,15 @@ const ListCtrl = L.Control.extend({
                             : `<td class="c-anom">${none}</td>`);
         };
         const fill = () => {
-            const shown = s => (mode === 'sea' ? s.type === 'tide' : !hiddenTypes.has(s.type));
+            const ofType = s => (mode === 'sea' ? s.type === 'tide' : !hiddenTypes.has(s.type));
+            const shown = s => inState(s) && ofType(s);
+            div.querySelectorAll('.bt-states button').forEach(b => {  // stations each state button would list
+                const k = b.dataset.state;
+                b.querySelector('.n').textContent = stationList.filter(s => ofType(s) && (k === 'all' || stateOf(s) === k)).length;
+            });
+            div.querySelectorAll('.bt-filter button').forEach(b => {  // type counts for the state shown
+                b.querySelector('.n').textContent = stationList.filter(s => (b.dataset.type === 'all' || s.type === b.dataset.type) && inState(s)).length;
+            });
             div.querySelector('.bt-stations tbody').innerHTML = stationList.filter(shown).sort(compare).map(s =>
                 `<tr data-id="${s.id}"><td class="c-sym">${mode === 'sea' ? seaMarkerHtml(s, true) : markerHtml(s, true)}`
                 + `${sr(TYPE_ONE[s.type])}</td>`
@@ -1308,7 +1345,7 @@ const ListCtrl = L.Control.extend({
         const fillSummary = () => {
             const q = id => div.querySelector(`#${id}`);
             if (mode === 'sea') {
-                const tides = stationList.filter(s => s.type === 'tide');
+                const tides = stationList.filter(s => s.type === 'tide' && inState(s));
                 q('bt-l-reporting').textContent = 'Tide stations reporting';
                 q('bt-n-reporting').textContent = `${tides.filter(s => seaOf(s).excess_m != null).length} of ${tides.length}`;
                 q('bt-l-alert').textContent = 'Flooding';
@@ -1316,9 +1353,10 @@ const ListCtrl = L.Control.extend({
                 q('bt-updated').textContent = pacific(seaLatest.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
             } else {
                 q('bt-l-reporting').textContent = 'Stations reporting';
-                q('bt-n-reporting').textContent = `${stationList.filter(s => s.last_c != null && !isStale(s)).length} of ${stationList.length}`;
+                const here = stationList.filter(inState);
+                q('bt-n-reporting').textContent = `${here.filter(s => s.last_c != null && !isStale(s)).length} of ${here.length}`;
                 q('bt-l-alert').textContent = 'Suspected marine heatwaves';
-                q('bt-n-heatwave').textContent = stationList.filter(s => s.status === 'heatwave').length;
+                q('bt-n-heatwave').textContent = here.filter(s => s.status === 'heatwave').length;
                 q('bt-updated').textContent = pacific(latest.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
             }
         };
@@ -1332,16 +1370,44 @@ const ListCtrl = L.Control.extend({
             fit();
         };
         div.refresh();
+        // type buttons: each shows or hides its type; All types shows every type, or hides them all when all are showing
+        const setType = (t, on) => {
+            on ? hiddenTypes.delete(t) : hiddenTypes.add(t);
+            const b = div.querySelector(`.bt-filter [data-type="${t}"]`);
+            b.classList.toggle('off', !on);
+            b.setAttribute('aria-pressed', String(on));
+            stationList.filter(s => s.type === t).forEach(s => (on ? markers[s.id].addTo(map) : map.removeLayer(markers[s.id])));
+        };
+        const markAll = () => {
+            const all = div.querySelector('.bt-filter [data-type="all"]'), on = hiddenTypes.size === 0;
+            all.classList.toggle('off', !on);
+            all.setAttribute('aria-pressed', String(on));
+        };
         div.querySelectorAll('.bt-filter button').forEach(b => {
             b.onclick = () => {
                 const t = b.dataset.type;
-                hiddenTypes.has(t) ? hiddenTypes.delete(t) : hiddenTypes.add(t);
-                b.classList.toggle('off', hiddenTypes.has(t));
-                b.setAttribute('aria-pressed', String(!hiddenTypes.has(t)));
-                stationList.filter(s => s.type === t).forEach(s => {
-                    hiddenTypes.has(t) ? map.removeLayer(markers[s.id]) : markers[s.id].addTo(map);
-                });
+                if (t === 'all') {
+                    const showAll = hiddenTypes.size > 0;
+                    Object.keys(TYPES).forEach(k => setType(k, showAll));
+                } else setType(t, hiddenTypes.has(t));
+                markAll();
                 fill();
+            };
+        });
+        // a state button: only that state's stations in the list and the counts, and the map zoomed to them
+        // (clear of the list, when it sits beside the map); All goes back to the whole coast
+        div.querySelectorAll('.bt-states button').forEach(b => {
+            b.onclick = () => {
+                shownState = b.dataset.state;
+                div.querySelectorAll('.bt-states button').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+                fill();
+                fillSummary();
+                fit();
+                if (shownState === 'all') map.fitBounds(HOME);
+                else map.fitBounds(L.latLngBounds(stationList.filter(inState).map(s => [s.lat, s.lon]))
+                                       .extend(STATE_LATS[shownState].map(lat => [lat, stationList.find(inState).lon])),
+                                   {paddingTopLeft: [window.innerWidth > 540 ? div.offsetWidth + 20 : 20, 20],
+                                    paddingBottomRight: [20, 20]});
             };
         });
         const head = div.querySelector('.bt-list-head');
