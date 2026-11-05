@@ -22,7 +22,8 @@ available through LAST_YEAR, when that's at least MIN_YEARS years; otherwise
 none (the site then shows the temperature without a climatology). NDBC's
 archive of CDIP buoys starts in 2004, so the older CDIP buoys use 2004-2020
 and the newer ones their whole record. Stations in PERIOD_OVERRIDES (tide
-stations only), whose record has a lasting shift, use the years given there.
+stations only), whose record has a lasting shift, use the years given there,
+and the BAD_YEARS of a station (clearly wrong readings) are left out.
 
 Buoy water temperature comes from NDBC's yearly standard-meteorological
 archives (CDIP buoys are archived there under their NDBC IDs); tide-station
@@ -178,6 +179,15 @@ TIDE_FIRST_YEAR = 2005
 # gauge on the coast) and has stayed ~0.6 °C above its 2005-2020 mean every year since 2015, so a
 # 2005-2020 normal flagged ordinary recent autumns as suspected marine heatwaves
 PERIOD_OVERRIDES = {'TCNW1': (2015, 2025)}
+# years left out of a station's climatology: stretches of clearly wrong readings that the operators' flags
+# don't catch, found by comparing each station's monthly anomalies with the median of its neighbors' (within
+# 150 km) and then looking at the readings themselves
+BAD_YEARS = {
+    'CECC1': (2005,),        # Crescent City: readings climb to 21-41 °C from September
+    'RCMC1': (2007,),        # Richmond: 21-25 °C in January-June (San Francisco Bay is ~10-17 °C then)
+    'PRYC1': (2005, 2006),   # Point Reyes: ~3 °C below its neighbors (the end of a 1999-2006 cold step)
+    '46232': (2006, 2007),   # Point Loma South: 1-3 °C below Torrey Pines Outer (46225, ~30 km) every quarter
+}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data')
@@ -287,19 +297,23 @@ def pick_period(daily_base, get_all):
 def choose_period(sid, kind):
     if sid in PERIOD_OVERRIDES:
         first, last = PERIOD_OVERRIDES[sid]
-        daily = coops_history(TIDE_STATIONS[sid][0], range(first, last + 1))
+        daily = without_bad_years(sid, coops_history(TIDE_STATIONS[sid][0], range(first, last + 1)))
         years = years_with_data(daily)
         return daily[daily.index.year.isin(years)], (years[0], years[-1])
     if kind == 'tide':
         coops = TIDE_STATIONS[sid][0]
-        return pick_period(coops_history(coops, range(TIDE_FIRST_YEAR, BASE_YEARS[1] + 1)),
-                           lambda: coops_history(coops, range(TIDE_FIRST_YEAR, LAST_YEAR + 1)))
-    if kind in ('ioos', 'shore'):
+        get = lambda last: coops_history(coops, range(TIDE_FIRST_YEAR, last + 1))
+    elif kind in ('ioos', 'shore'):
         daily, _ = ioos_history(sid)
-        return pick_period(daily[(daily.index.year >= BASE_YEARS[0]) & (daily.index.year <= BASE_YEARS[1])],
-                           lambda: daily)
-    return pick_period(daily_history(sid, range(BASE_YEARS[0], BASE_YEARS[1] + 1)),
-                       lambda: daily_history(sid, range(BASE_YEARS[0], LAST_YEAR + 1)))
+        get = lambda last: daily[(daily.index.year >= BASE_YEARS[0]) & (daily.index.year <= last)]
+    else:
+        get = lambda last: daily_history(sid, range(BASE_YEARS[0], last + 1))
+    return pick_period(without_bad_years(sid, get(BASE_YEARS[1])), lambda: without_bad_years(sid, get(LAST_YEAR)))
+
+
+def without_bad_years(sid, daily):
+    """The daily means without the station's BAD_YEARS."""
+    return daily[~daily.index.year.isin(BAD_YEARS.get(sid, ()))]
 
 
 def smooth(values):
