@@ -183,6 +183,9 @@ PERIOD_OVERRIDES = {'TCNW1': (2015, 2025)}
 # don't catch, found by comparing each station's monthly anomalies with the median of its neighbors' (within
 # 150 km) and then looking at the readings themselves
 BAD_YEARS = {
+    'PTAW1': (2006, 2007),   # Port Angeles: ~1 °C below New Dungeness (46088) and Port Townsend, which it
+                             # otherwise matches within ~0.2 °C
+    'TOKW1': (2006, 2007),   # Toke Point: ~2.5 °C above Westport and Grays Harbor (46211), usually 0.5-1 °C
     'CECC1': (2005,),        # Crescent City: readings climb to 21-41 °C from September
     'RCMC1': (2007,),        # Richmond: 21-25 °C in January-June (San Francisco Bay is ~10-17 °C then)
     'PRYC1': (2005, 2006),   # Point Reyes: ~3 °C below its neighbors (the end of a 1999-2006 cold step)
