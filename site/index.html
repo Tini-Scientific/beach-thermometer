@@ -176,16 +176,15 @@ body.imperial .bt-cbar-ticks.f { display: block; }
 .bt-mk .pulse.r2 { animation-delay: 0.45s; }  /* flood rings: two or three waves, one after another */
 .bt-mk .pulse.r3 { animation-delay: 0.9s; }
 /* reduced motion: the ring holds still instead of pulsing, so a heatwave still has a cue besides color */
-.bt-cbar-key { display: none; }
+/* the temperature legend's heatwave key: like the flood key, smaller (one row, the map's own marker) */
+.bt-cbar-key { border-top: 1px solid #e5e5e5; margin-top: 4px; padding: 4px 0 1px; }
+.bt-cbar-key div { display: flex; align-items: center; gap: 6px; line-height: 1.3; min-height: 28px; }
+.bt-cbar-key .bt-mk { width: 28px; height: 28px; flex: none; filter: drop-shadow(0 0 0.6px rgba(0,0,0,0.6)); }
 @media (prefers-reduced-motion: reduce) {
     .bt-mk .pulse { animation: none; transform: scale(1.5); stroke-width: 0.8; }
     /* still flood rings, nested with clear gaps; thinner as they grow, so all draw about the same width */
     .bt-mk .pulse.r2 { transform: scale(2); stroke-width: 0.65; }
     .bt-mk .pulse.r3 { transform: scale(2.5); stroke-width: 0.52; }
-    /* the still ring needs explaining, since it doesn't draw the eye the way the pulse does */
-    .bt-cbar-key { display: block; border-top: 1px solid #e5e5e5; margin-top: 4px; padding: 5px 0 2px; }
-    .bt-cbar-key div { display: flex; align-items: center; gap: 7px; line-height: 26px; }
-    .bt-cbar-key .bt-mk { width: 26px; height: 26px; filter: drop-shadow(0 0 1.2px rgba(0,0,0,0.7)); }
 }
 
 /* state buttons in the list header: one is on (filled), like the view and unit switches */
@@ -1030,9 +1029,8 @@ function renderCbar() {
         + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${THERMAL.join(', ')});"></div>`
         + ticks([5, 10, 15, 20, 25].map(c => [c, c]), pos, 'c')
         + ticks([40, 50, 60, 70, 80].map(f => [f, (f - 32) * 5 / 9]), pos, 'f')
-        // key for the still heatwave ring, shown only when motion is reduced
-        + `<div class="bt-cbar-key"><div>${markerHtml({type: 'cdip', status: 'normal', last_c: 17})}No heatwave</div>`
-        + `<div>${markerHtml({type: 'cdip', status: 'heatwave', last_c: 17})}Suspected marine heatwave</div></div>`;
+        // the heatwave signal: a red outline and a pulsing ring (a still ring when motion is reduced)
+        + `<div class="bt-cbar-key"><div>${markerHtml({type: 'cdip', status: 'heatwave', last_c: 17})}Suspected marine heatwave</div></div>`;
 }
 const ColorbarCtrl = L.Control.extend({
     options: {position: 'topright'},
