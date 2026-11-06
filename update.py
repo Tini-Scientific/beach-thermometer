@@ -13,6 +13,9 @@
    - site/data/stations/{id}.json: the past RECENT_DAYS as hourly means plus
      the climatology (mean, 10th and 90th percentile by day of year).
    - site/data/stations/{id}.csv: the same hourly data for download.
+   The station's daily means (data/daily/{id}.csv, committed: one small file a station, kept for good;
+   backfill_daily.py filled the year before the archive began) get the complete days of the hourly window,
+   and the past YEAR_DAYS of them go in its JSON for the chart's Year view.
    Status follows Hobday et al. (2016): a suspected marine heatwave when the
    daily mean has been above the climatological 90th percentile for at least
    MHW_MIN_DAYS days in a row up to today (a suspected cold spell for below
@@ -43,10 +46,13 @@ MHW_MIN_DAYS = 5
 NEAR_NORMAL_C = 0.25
 STALE_HOURS = 6
 STALE_DAYS = 14
+YEAR_DAYS = 365         # the cards' Year view: daily means (data/daily/)
+MIN_HOURS_PER_DAY = 12  # a day's mean needs this many hourly means (as for the climatology)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data')
 ARCHIVE = os.path.join(DATA, 'archive')
+DAILY = os.path.join(DATA, 'daily')  # {station}.csv: daily means for the Year view (backfill_daily.py started them)
 SITE_DATA = os.path.join(HERE, 'site', 'data')
 
 
@@ -96,6 +102,36 @@ def merge_into_archive(sid, hourly, replace=False):
         part.round(3).rename_axis('time_utc').to_frame('wtmp_c').to_csv(path)
 
 
+def daily_means(hourly):
+    """Daily (UTC) means of hourly means, for days with at least MIN_HOURS_PER_DAY of them."""
+    if hourly.empty:
+        return hourly
+    n = hourly.resample('D').count()
+    return hourly.resample('D').mean()[n >= MIN_HOURS_PER_DAY].dropna()
+
+
+def archive_daily(sid, now):
+    """Daily means of the station's whole hourly archive, complete days only (before today)."""
+    d = daily_means(read_archive(sid, pd.Timestamp('2000-01-01', tz='UTC')))
+    return d[d.index < now.floor('D')]
+
+
+def read_daily(sid):
+    path = os.path.join(DAILY, f'{sid}.csv')
+    if not os.path.exists(path):
+        return pd.Series(dtype=float, name='wtmp_c', index=pd.DatetimeIndex([], tz='UTC'))
+    s = pd.read_csv(path, index_col=0)['wtmp_c'].astype(float)  # float even when the file has no days yet
+    s.index = pd.to_datetime(s.index, utc=True)
+    return s
+
+
+def write_daily(sid, daily):
+    os.makedirs(DAILY, exist_ok=True)
+    out = daily.astype(float).round(2).rename('wtmp_c')
+    out.index = out.index.strftime('%Y-%m-%d')
+    out.rename_axis('date_utc').to_frame().to_csv(os.path.join(DAILY, f'{sid}.csv'))
+
+
 def read_archive(sid, since):
     folder = os.path.join(ARCHIVE, sid)
     parts = []
@@ -143,6 +179,14 @@ def main():
         if len(raw):
             merge_into_archive(sid, raw.resample('h').mean().dropna(), replace=info['type'] == 'tide')
         hourly = read_archive(sid, since)
+        # the Year view's daily means: the complete days in the hourly window replace what the file held for them
+        recent_days = daily_means(hourly)
+        recent_days = recent_days[(recent_days.index >= since.ceil('D')) & (recent_days.index < now.floor('D'))]
+        year = pd.concat([read_daily(sid), recent_days])
+        year = year[~year.index.duplicated(keep='last')].sort_index()
+        write_daily(sid, year)
+        year_start = now.floor('D') - pd.Timedelta(days=YEAR_DAYS)
+        year = year.reindex(pd.date_range(year_start, now.floor('D') - pd.Timedelta(days=1), freq='D'))
         cs = clim[clim['station'] == sid].set_index('doy').reindex(range(1, 367))
         has_clim = pd.notna(info['clim_start'])
         entry = {'id': sid, 'name': info['name'], 'type': info['type'], 'long_name': info['long_name'],
@@ -193,6 +237,7 @@ def main():
         entries.append(entry)
         with open(os.path.join(SITE_DATA, 'stations', f'{sid}.json'), 'w') as f:
             json.dump({'id': sid, 't': [int(t.timestamp() * 1000) for t in hourly.index],
+                       'daily_t0': int(year_start.timestamp() * 1000), 'daily': clean(year.values),
                        'c': [round(float(v), 2) for v in hourly.values],
                        'clim_mean': clean(cs['mean_c']), 'clim_p10': clean(cs['p10_c']),
                        'clim_p90': clean(cs['p90_c'])}, f, separators=(',', ':'), allow_nan=False)

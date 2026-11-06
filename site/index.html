@@ -387,7 +387,27 @@ document.querySelector('.bt-sources').onclick = e => {
 const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', heatwave: '#D7263D', text: '#555', noData: '#9E9E9E', noDataEdge: '#6E6E6E'};
 // climatology bands as pale solid tints (mixed with white) so legend swatches match
 const BAND_HOT = 'rgb(253, 238, 223)', BAND_COLD = 'rgb(224, 239, 255)';
-const WINDOWS = {day: ['Day', 1], week: ['Week', 7], d30: ['30 days', 30], d45: ['45 days', 45]};
+const WINDOWS = {day: ['Day', 1], week: ['Week', 7], d45: ['45 days', 45], d90: ['90 days', 90], year: ['Year', 365]};
+// windows longer than the hourly data (45 days) use daily means
+const DAILY_FROM_DAYS = 90;
+// the 90-day and Year views plot daily means (UTC days, update.py's data/daily/), each at its day's midday
+const yearSeries = d => {
+    const t = [], c = [];
+    (d.daily || []).forEach((v, i) => { t.push(d.daily_t0 + i * 864e5 + 432e5); c.push(v); });
+    return {t, c};
+};
+const utcMonth = v => new Date(v).toLocaleString('en-US', {month: 'short', timeZone: 'UTC'});
+const utcDay = v => new Date(v).toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'});
+// x ticks on the first of each month (UTC, like the daily means)
+function monthTicks(t0, t1, every) {
+    const ticks = [], d = new Date(t0);
+    for (let m = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1); m <= t1;) {
+        ticks.push({value: m});
+        const n = new Date(m);
+        m = Date.UTC(n.getUTCFullYear(), n.getUTCMonth() + every, 1);
+    }
+    return ticks;
+}
 const DEFAULT_WINDOW = 'd45';
 const TZ = 'America/Los_Angeles';
 const NDBC = 'https://www.ndbc.noaa.gov';
@@ -564,10 +584,13 @@ function drawChart(id) {
     const canvas = document.getElementById(`bt-canvas-${id}`);
     if (!d || !canvas) return;
     if (charts[id]) charts[id].destroy();
-    const days = WINDOWS[st.win][1];
-    const t1 = Date.now(), t0 = t1 - days * 864e5;
+    const days = WINDOWS[st.win][1], isYear = st.win === 'year', isDaily = days >= DAILY_FROM_DAYS;
+    const t1 = Date.now(), t0 = isYear && d.daily_t0 ? d.daily_t0 : t1 - days * 864e5;
     const temp = [];
-    d.t.forEach((t, i) => { if (t >= t0) temp.push({x: t, y: conv(d.c[i])}); });
+    if (isDaily) {  // daily means; a missing day (null) leaves a gap in the line
+        const y = yearSeries(d);
+        y.t.forEach((t, i) => { if (t >= t0) temp.push({x: t, y: y.c[i] == null ? null : conv(y.c[i])}); });
+    } else d.t.forEach((t, i) => { if (t >= t0) temp.push({x: t, y: conv(d.c[i])}); });
     // climatology at each UTC midnight in the window (plus the next one)
     const mean = [], p10 = [], p90 = [];
     for (let t = Math.floor(t0 / 864e5) * 864e5; t <= t1 + 864e5; t += 864e5) {
@@ -580,10 +603,11 @@ function drawChart(id) {
     const band = {pointRadius: 0, borderWidth: 0, hidden: !st.clim, order: 2, pointStyle: 'rect'};
     const narrow = window.innerWidth < 540;
     const step = days === 1 ? 6 * 3.6e6 : days === 7 ? (narrow ? 2 : 1) * 864e5
-               : days === 30 ? (narrow ? 10 : 5) * 864e5 : (narrow ? 14 : 7) * 864e5;
-    const tickLabel = v => days === 1 ? pacific(v, {hour: 'numeric'})
+               : days === 45 ? (narrow ? 14 : 7) * 864e5 : (narrow ? 30 : 14) * 864e5;
+    const tickLabel = v => isYear ? utcMonth(v) : days === 1 ? pacific(v, {hour: 'numeric'})
                                       : pacific(v, {month: 'short', day: 'numeric'});
-    document.getElementById(`bt-msg-${id}`).textContent = temp.length ? '' : `No data in the past ${WINDOWS[st.win][0].toLowerCase()}`;
+    document.getElementById(`bt-msg-${id}`).textContent = temp.some(p => p.y != null) ? ''
+        : `No data in the past ${isYear ? 'year' : WINDOWS[st.win][0].toLowerCase()}`;
     // rewritten only when it changes, so a unit switch (which redraws the chart) isn't read out again
     const sum = document.getElementById(`bt-sum-${id}`), text = chartSummary(id, t0, days);
     if (sum._text !== text) { sum.innerHTML = text; sum._text = text; }
@@ -594,15 +618,15 @@ function drawChart(id) {
             {label: 'Normal', data: mean, borderColor: '#737373', borderDash: [5, 4], borderWidth: 1.2,
              pointRadius: 0, fill: false, hidden: !st.clim, order: 1, pointStyle: 'line'},
             Object.assign({label: '10th pct.', tip: '10th percentile', data: p10, backgroundColor: BAND_COLD, fill: '-1'}, band),
-            {label: 'Observed', data: temp, borderColor: COLORS.fandango, borderWidth: 1.6, pointRadius: 0,
-             spanGaps: 3 * 3.6e6, fill: false, order: 0, pointStyle: 'line'},
+            {label: isDaily ? 'Observed (daily mean)' : 'Observed', data: temp, borderColor: COLORS.fandango, borderWidth: 1.6,
+             pointRadius: 0, spanGaps: isDaily ? false : 3 * 3.6e6, fill: false, order: 0, pointStyle: 'line'},
         ]},
         options: {
             animation: false, responsive: true, maintainAspectRatio: false,
             interaction: {mode: 'nearest', axis: 'x', intersect: false},
             scales: {
                 x: {type: 'linear', min: t0, max: t1, grid: {display: false},
-                    afterBuildTicks: axis => { axis.ticks = pacificTicks(t0, t1, step); },
+                    afterBuildTicks: axis => { axis.ticks = isYear ? monthTicks(t0, t1, narrow ? 2 : 1) : pacificTicks(t0, t1, step); },
                     ticks: {callback: tickLabel, color: '#555', font: {size: 11}, maxRotation: 0}},
                 y: {title: {display: true, text: `Water temp (${unit()})`, color: '#555', font: {size: 12}},
                     grid: {color: '#eee'}, ticks: {color: '#555', font: {size: 11}}},
@@ -610,14 +634,15 @@ function drawChart(id) {
             plugins: {
                 // tapping Normal or Normal range in the legend shows or hides the climatology
                 legend: {display: Boolean(d.clim_mean.some(v => v != null)), position: 'bottom',
-                         onClick: (e, item) => { if (item.text !== 'Observed') { st.clim = !st.clim; drawChart(id); } },
+                         onClick: (e, item) => { if (!item.text.startsWith('Observed')) { st.clim = !st.clim; drawChart(id); } },
                          onHover: e => { e.native.target.style.cursor = 'pointer'; },
                          onLeave: e => { e.native.target.style.cursor = 'default'; },
                          labels: {usePointStyle: true, boxWidth: 14, font: {size: 11}, color: '#444',
                                   filter: item => item.text !== '10th pct.',
-                                  sort: (a, b) => (a.text === 'Observed' ? -1 : b.text === 'Observed' ? 1 : 0)}},
+                                  sort: (a, b) => (a.text.startsWith('Observed') ? -1 : b.text.startsWith('Observed') ? 1 : 0)}},
                 tooltip: {callbacks: {
-                    title: items => pacific(items[0].parsed.x, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}),
+                    title: items => (isDaily ? utcDay(items[0].parsed.x)
+                                            : pacific(items[0].parsed.x, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'})),
                     label: item => `${item.dataset.tip || item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit()}`}},
             },
         },
@@ -631,25 +656,28 @@ function bothRange(a, b) {
          + `<span class="bt-imperial">${(a * 9 / 5 + 32).toFixed(1)}–${(b * 9 / 5 + 32).toFixed(1)} °F</span>`;
 }
 function chartSummary(id, t0, days) {
-    const d = stationData[id], s = latest.stations.find(x => x.id === id);
-    const span = days === 1 ? 'Past 24 hours' : `Past ${days} days`;
-    const when = t => `<span class="nw">` + pacific(t, days === 1 ? {hour: 'numeric', minute: '2-digit'} : {month: 'short', day: 'numeric'}) + `</span>`;
+    const raw = stationData[id], s = latest.stations.find(x => x.id === id);
+    const isYear = days === 365, isDaily = days >= DAILY_FROM_DAYS;
+    const d = Object.assign({}, raw, isDaily ? yearSeries(raw) : {});  // the 90-day and Year views: daily means
+    const span = days === 1 ? 'Past 24 hours' : isYear ? 'Past year' : `Past ${days} days`;
+    const when = t => `<span class="nw">` + (isDaily ? utcDay(t)
+        : pacific(t, days === 1 ? {hour: 'numeric', minute: '2-digit'} : {month: 'short', day: 'numeric'})) + `</span>`;
     const doy = t => dayOfYear(t) - 1;
     const parts = [];
     if (isStale(s)) {
         parts.push(`No readings in the past ${latest.stale_days} days; the last was on `
                    + `${pacific(s.last_time_ms, {month: 'short', day: 'numeric'})}.`);
     }
-    const idx = d.t.map((t, i) => i).filter(i => d.t[i] >= t0);
+    const idx = d.t.map((t, i) => i).filter(i => d.t[i] >= t0 && d.c[i] != null);
     if (!idx.length) return parts.length ? parts.join(' ') : `No readings in the ${span.toLowerCase()}.`;
     const lo = idx.reduce((a, i) => (d.c[i] < d.c[a] ? i : a)), hi = idx.reduce((a, i) => (d.c[i] > d.c[a] ? i : a));
-    parts.push(`${span}: water temperature ranged from ${bothUnits(d.c[lo])} (${when(d.t[lo])}) `
+    parts.push(`${span}: ${isDaily ? 'the daily mean' : 'water'} temperature ranged from ${bothUnits(d.c[lo])} (${when(d.t[lo])}) `
                + `to ${bothUnits(d.c[hi])} (${when(d.t[hi])}).`);
     const rated = idx.filter(i => d.clim_p90[doy(d.t[i])] != null);
     if (rated.length) {
         const share = f => rated.filter(f).length / rated.length;
         const above = share(i => d.c[i] > d.clim_p90[doy(d.t[i])]), below = share(i => d.c[i] < d.clim_p10[doy(d.t[i])]);
-        const amount = x => (x > 0.995 ? 'the whole time' : `${Math.max(1, Math.round(x * 100))}% of the time`);
+        const amount = x => (x > 0.995 ? 'the whole time' : `${Math.max(1, Math.round(x * 100))}% of the ${isDaily ? 'days' : 'time'}`);
         // a heatwave or cold spell running to today, when it's shorter than the window
         const streak = n => (n && n < days ? `, including the last ${n} days in a row` : '');
         const hot = streak(s.status === 'heatwave' ? s.hot_days : 0), cold = streak(s.status === 'coldspell' ? s.cold_days : 0);

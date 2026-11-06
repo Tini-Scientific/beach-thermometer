@@ -44,7 +44,7 @@ jobs:
         run: |
           git config user.name 'beachthermometer-bot'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data/archive data/feed
+          git add data/archive data/daily data/feed
           git diff --cached --quiet || git commit -m "Archive update $(date -u +'%Y-%m-%d %H:%M UTC')"
           git pull --rebase origin main  # in case main moved while this run was fetching data
           git push origin HEAD:main

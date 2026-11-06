@@ -25,6 +25,8 @@ site on GitHub Pages.
 | `ndbc.py` | Shared NDBC file reader |
 | `ioos.py` | Mooring and shore-station data from the IOOS, NANOOS and UW ERDDAP servers (moorings: shallowest sensor within 3 m; despiked) |
 | `data/archive/{station}/{YYYY-MM}.csv` | Hourly water temperature, kept going forward (committed by the job) |
+| `data/daily/{station}.csv` | Daily-mean water temperature for the cards' Year view (updated and committed by the job) |
+| `backfill_daily.py` | One-time fill of `data/daily/` for the year before the archive began (re-run to add a station) |
 | `.github/workflows/update.yml` | The hourly schedule |
 
 `site/data/` is written fresh on every run and published straight to Pages, so it
