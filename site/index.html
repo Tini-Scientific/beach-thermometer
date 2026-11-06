@@ -698,9 +698,10 @@ function chartSummary(id, t0, days) {
 async function openChart(id) {
     // climatology shown by default when the buoy has one; matches the freshly drawn popup buttons
     chartState[id] = {win: DEFAULT_WINDOW, clim: Boolean(latest.stations.find(s => s.id === id).clim_years)};
-    if (!stationData[id]) {
+    if (!stationData[id] || stationData[id]._gen !== latest.generated_ms) {  // none yet, or older than the summary
         try {
             stationData[id] = await (await fetch(`data/stations/${id}.json`, {cache: 'no-cache'})).json();
+            stationData[id]._gen = latest.generated_ms;
         } catch (e) {
             document.getElementById(`bt-msg-${id}`).textContent = 'Could not load data';
             return;
@@ -959,9 +960,10 @@ function seaSummary(id, t0, days) {
 
 async function openSeaChart(id) {
     seaState[id] = {win: SEA_DEFAULT_WINDOW};
-    if (!seaData[id]) {
+    if (!seaData[id] || seaData[id]._gen !== seaLatest.generated_ms) {
         try {
             seaData[id] = await (await fetch(`data/sealevel/${id}.json`, {cache: 'no-cache'})).json();
+            seaData[id]._gen = seaLatest.generated_ms;
         } catch (e) {
             document.getElementById(`bt-seamsg-${id}`).textContent = 'Could not load data';
             return;
@@ -1461,16 +1463,71 @@ const seaReady = fetch('data/sealevel.json', {cache: 'no-cache'}).then(r => r.js
     b.disabled = true;
     b.title = 'Tide data unavailable right now';
 });
-fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
-    latest = data;
-    // update.py marks readings older than stale_days; check again against the viewer's clock, since the data
-    // can be hours old (days, viewed locally), so a station near the cutoff is shown as the age line says
+// update.py marks readings older than stale_days; check again against the viewer's clock, since the data
+// can be hours old (days, viewed locally), so a station near the cutoff is shown as the age line says
+function markStale(data) {
     data.stations.forEach(s => {
         if (s.last_time_ms && Date.now() - s.last_time_ms > data.stale_days * 864e5 && !isStale(s)) {
             ['anom_c', 'hot_days', 'cold_days', 'streak_is_whole_record'].forEach(k => delete s[k]);
             s.status = 'stale';
         }
     });
+}
+
+// A page left open picks up new data on its own: every REFRESH_MIN minutes, and when the tab comes back into
+// view after a while (a laptop woken in the morning). Only the two summary files are fetched, and nothing
+// changes unless the site has been updated since (it's rebuilt about hourly). The markers, the station list
+// and its counts update in place; the map stays where it is, an open card stays open (its chart and numbers
+// are fresh the next time it's opened), and nothing is announced. While keyboard focus is on a marker or in
+// the list (which would lose it as they're redrawn), the update waits a minute and tries again.
+const REFRESH_MIN = 15;
+let lastCheck = Date.now(), refreshRetry = null;
+async function refreshData() {
+    lastCheck = Date.now();
+    clearTimeout(refreshRetry);
+    const a = document.activeElement;
+    if (a && (a.closest('.leaflet-marker-pane') || (listDiv && listDiv.contains(a)))) {
+        refreshRetry = setTimeout(refreshData, 60e3);
+        return;
+    }
+    let changed = false;
+    try {
+        const data = await (await fetch('data/latest.json', {cache: 'no-cache'})).json();
+        if (latest && data.generated_ms !== latest.generated_ms) {
+            markStale(data);
+            // update each station object in place: the markers, tooltips and cards hold on to them
+            const byId = Object.fromEntries(data.stations.map(s => [s.id, s]));
+            stationList.forEach(s => {
+                const n = byId[s.id];
+                if (!n) return;
+                Object.keys(s).forEach(k => delete s[k]);
+                Object.assign(s, n);
+            });
+            Object.assign(latest, data, {stations: latest.stations});
+            changed = true;
+        }
+    } catch (e) { /* offline or mid-deploy: try again next time */ }
+    try {
+        const d = await (await fetch('data/sealevel.json', {cache: 'no-cache'})).json();
+        if (seaLatest && d.generated_ms !== seaLatest.generated_ms) {
+            seaLatest = d;
+            sea = Object.fromEntries(d.stations.map(e => [e.id, e]));
+            changed = true;
+        }
+    } catch (e) { /* as above */ }
+    if (changed) {
+        stationList.forEach(placeMarker);
+        if (listDiv) listDiv.refresh();
+    }
+}
+setInterval(refreshData, REFRESH_MIN * 60e3);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - lastCheck > 5 * 60e3) refreshData();
+});
+
+fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
+    latest = data;
+    markStale(data);
     stationList = data.stations;
     // north to south, so Tab moves steadily down the coast
     [...data.stations].sort((a, b) => b.lat - a.lat).forEach(s => {
