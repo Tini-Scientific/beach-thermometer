@@ -590,6 +590,10 @@ function drawChart(id) {
         const y = yearSeries(d);
         y.t.forEach((t, i) => { if (t >= t0) temp.push({x: t, y: y.c[i] == null ? null : conv(y.c[i])}); });
     } else d.t.forEach((t, i) => { if (t >= t0) temp.push({x: t, y: conv(d.c[i])}); });
+    // join readings up to 3 hours apart, or 2.5 times the station's usual spacing for one that reports less often
+    // than hourly (the Hood Canal profiling buoys, every 6 hours), so a real outage still leaves a gap
+    const steps = d.t.slice(1).map((t, i) => t - d.t[i]).sort((a, b) => a - b);
+    const joinMs = Math.max(3 * 3.6e6, 2.5 * (steps.length ? steps[steps.length >> 1] : 0));
     // climatology at each UTC midnight in the window (plus the next one)
     const mean = [], p10 = [], p90 = [];
     for (let t = Math.floor(t0 / 864e5) * 864e5; t <= t1 + 864e5; t += 864e5) {
@@ -618,7 +622,7 @@ function drawChart(id) {
              pointRadius: 0, fill: false, hidden: !st.clim, order: 1, pointStyle: 'line'},
             Object.assign({label: '10th pct.', tip: '10th percentile', data: p10, backgroundColor: BAND_COLD, fill: '-1'}, band),
             {label: isDaily ? 'Observed (daily mean)' : 'Observed', data: temp, borderColor: COLORS.fandango, borderWidth: 1.6,
-             pointRadius: 0, spanGaps: isDaily ? false : 3 * 3.6e6, fill: false, order: 0, pointStyle: 'line'},
+             pointRadius: 0, spanGaps: isDaily ? false : joinMs, fill: false, order: 0, pointStyle: 'line'},
         ]},
         options: {
             animation: false, responsive: true, maintainAspectRatio: false,

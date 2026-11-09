@@ -31,6 +31,7 @@
    reported within STALE_HOURS.
 """
 import json
+import math
 import os
 import sys
 
@@ -103,11 +104,15 @@ def merge_into_archive(sid, hourly, replace=False):
 
 
 def daily_means(hourly):
-    """Daily (UTC) means of hourly means, for days with at least MIN_HOURS_PER_DAY of them."""
+    """Daily (UTC) means of hourly means, for days with at least half the station's usual readings: MIN_HOURS_PER_DAY
+    hourly means for a station that reports hourly, fewer for one that reports less often (the Hood Canal
+    profiling buoys report every 6 hours, so 2 of their 4 a day)."""
     if hourly.empty:
         return hourly
+    step_h = max(1.0, hourly.index.to_series().diff().median() / pd.Timedelta(hours=1)) if len(hourly) > 1 else 1.0
+    need = min(MIN_HOURS_PER_DAY, max(2, math.ceil(MIN_HOURS_PER_DAY / step_h)))
     n = hourly.resample('D').count()
-    return hourly.resample('D').mean()[n >= MIN_HOURS_PER_DAY].dropna()
+    return hourly.resample('D').mean()[n >= need].dropna()
 
 
 def archive_daily(sid, now):
