@@ -19,7 +19,7 @@
    Status follows Hobday et al. (2016): a suspected marine heatwave when the
    daily mean has been above the climatological 90th percentile for at least
    MHW_MIN_DAYS days in a row up to today (a suspected cold spell for below
-   the 10th), otherwise warmer / cooler than usual when the 24 h anomaly is
+   the 10th), counting only days at least MHW_MIN_ANOM_C from normal, otherwise warmer / cooler than usual when the 24 h anomaly is
    beyond ±NEAR_NORMAL_C, else near normal. Buoys whose record is too short
    for a climatology (see build_climatology.py) get status 'noclim', and
    buoys whose latest reading is more than STALE_DAYS old get 'stale', and stations
@@ -45,6 +45,10 @@ from ndbc import NDBC_URL, http, read_stdmet
 RECENT_DAYS = 45
 MHW_MIN_DAYS = 5
 NEAR_NORMAL_C = 0.25
+# a heatwave (cold spell) day must also be at least this far above (below) normal: where the normal range is
+# narrow (central Puget Sound in fall: 90th percentile under 0.5 °C above normal) a departure too small to
+# matter would otherwise count. Not part of Hobday et al.'s definition; see the methods page.
+MHW_MIN_ANOM_C = 1.0
 STALE_HOURS = 6
 STALE_DAYS = 14
 YEAR_DAYS = 365         # the cards' Year view: daily means (data/daily/)
@@ -82,6 +86,11 @@ SUSPECT = {
     'PTWW1': ('2026-06-07', 'Readings jumped about 4.5 °F (2.5 °C) on June 7, 2026, and have stayed that much '
                             'higher, while nearby stations show no such jump. Until this is resolved, no heatwave '
                             'or cold-spell status is given here.'),
+    # Hoodsport (UW ORCA, Hood Canal): no readings 2026-09-09 to 11-02; the days before the gap ran ~3.5 °C
+    # below normal, the days since ~1.4 °C above, and Twanoh, the other Hood Canal buoy, kept reporting
+    'orca2_L3_depthgridded_025': ('2026-11-03', 'This buoy sent no readings from September 9 to November 2, 2026, '
+                                  'and its readings before and after the gap are in question. Until it has '
+                                  'reported steadily for a while, no heatwave or cold-spell status is given here.'),
 }
 
 
@@ -215,8 +224,9 @@ def main():
             anom = last24 - cs.loc[t_last.dayofyear, 'mean_c']
             daily = hourly.resample('D').mean().dropna()
             c_day = cs.loc[daily.index.dayofyear]
-            hot = streak(list(daily.values > c_day['p90_c'].values))
-            cold = streak(list(daily.values < c_day['p10_c'].values))
+            mean_day = c_day['mean_c'].values
+            hot = streak(list((daily.values > c_day['p90_c'].values) & (daily.values >= mean_day + MHW_MIN_ANOM_C)))
+            cold = streak(list((daily.values < c_day['p10_c'].values) & (daily.values <= mean_day - MHW_MIN_ANOM_C)))
             if hot >= MHW_MIN_DAYS:
                 status = 'heatwave'
             elif cold >= MHW_MIN_DAYS:

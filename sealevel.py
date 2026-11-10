@@ -41,6 +41,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SITE_DATA = os.path.join(HERE, 'site', 'data')
 
 
+def timed(values):
+    """A Series from {UTC time: value}, with a time index even when empty (CO-OPS sometimes replies with
+    no readings), so time comparisons on it still work."""
+    return pd.Series(values, dtype=float, index=pd.DatetimeIndex(list(values), tz='UTC') if not values else None)
+
+
 def series(params, verified=None):
     """A CO-OPS product as a Series of metres above MLLW, indexed by UTC time; empty when unavailable.
     With a list as `verified`, appends the times of verified readings (quality 'v') to it."""
@@ -50,7 +56,7 @@ def series(params, verified=None):
     rows = body.get('data') or body.get('predictions') or []  # an error comes back as {'error': ...}
     # water level flags 'O,F,R,L': R (rate of change) or L (beyond the sensor's limits) mark a suspect reading
     ok = lambda x: x.get('v') not in (None, '') and x.get('f', '0,0,0,0').split(',')[2:] == ['0', '0']
-    s = pd.Series({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if ok(x)}, dtype=float)
+    s = timed({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if ok(x)})
     if verified is not None:
         verified += [pd.Timestamp(x['t'], tz='UTC') for x in rows if x.get('q') == 'v']
     return s.sort_index()
@@ -109,7 +115,7 @@ def high_tides(coops, now):
                               'begin_date': f'{now:{fmt}}',
                               'end_date': f'{now + pd.Timedelta(days=2):{fmt}}'}, timeout=60)
     rows = (r.json().get('predictions') or []) if r.status_code == 200 else []
-    return pd.Series({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if x.get('type') == 'H'}, dtype=float).sort_index()
+    return timed({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if x.get('type') == 'H'}).sort_index()
 
 
 def thin(s):

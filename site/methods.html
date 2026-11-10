@@ -132,17 +132,17 @@ thead th { background: #EEF0F4; }
 <p>Historical data comes from NDBC's yearly archives for buoys (NDBC's archive of CDIP buoys begins in 2004), from the CO-OPS data API's hourly readings for tide stations (without flagged readings), and from the IOOS sensor catalog, NANOOS and the University of Washington for moorings and shore stations. Records of different lengths mean that normal ranges at different stations cover different years; stations whose normal is based on recent years only will partly include recent warming in their "normal".</p>
 
 <h2 id="heatwaves">Suspected marine heatwaves and other labels</h2>
-<p>Each station with a normal range gets one label, checked in this order:</p>
+<p>A heatwave is judged against what's normal for that time of year, so a heatwave in November is warm for November, not as warm as summer. Each station with a normal range gets one label, checked in this order:</p>
 <div class="wrap" tabindex="0" role="region" aria-label="Station labels (scrolls sideways on small screens)">
 <table>
   <caption>Station labels</caption>
   <thead><tr><th scope="col">Label</th><th scope="col">Rule</th></tr></thead>
   <tbody>
-    <tr><th scope="row">Suspected marine heatwave</th><td>The daily mean has been above the station's 90th percentile for the date for at least 5 days in a row, up to the latest day.</td></tr>
-    <tr><th scope="row">Suspected marine cold spell</th><td>The daily mean has been below the 10th percentile for at least 5 days in a row, up to the latest day.</td></tr>
+    <tr><th scope="row">Suspected marine heatwave</th><td>The daily mean has been above the station's 90th percentile for the date, and at least 1 °C (1.8 °F) above normal, for at least 5 days in a row, up to the latest day.</td></tr>
+    <tr><th scope="row">Suspected marine cold spell</th><td>The daily mean has been below the 10th percentile, and at least 1 °C (1.8 °F) below normal, for at least 5 days in a row, up to the latest day.</td></tr>
     <tr><th scope="row">Warmer or cooler than usual</th><td>The average of the past 24 hours is more than 0.25 °C (0.45 °F) above or below the normal for the date.</td></tr>
     <tr><th scope="row">Near normal</th><td>Within 0.25 °C of the normal.</td></tr>
-    <tr><th scope="row">No status · readings in question</th><td>The station's recent readings look wrong: for example, a lasting jump that nearby stations don't show. Its temperature and chart are still shown, with a note on its card, but it gets no other label and isn't counted. As of November 2026 this applies to Port Townsend, whose readings rose about 2.5 °C (4.5 °F) on June 7, 2026 and have stayed that much higher. Its daily ups and downs didn't change, so the sensor doesn't appear to have moved closer to the surface.</td></tr>
+    <tr><th scope="row">No status · readings in question</th><td>The station's recent readings look wrong: for example, a lasting jump that nearby stations don't show, or long gaps. Its temperature and chart are still shown, with a note on its card, but it gets no other label and isn't counted. As of November 2026 this applies to Port Townsend, whose readings rose about 2.5 °C (4.5 °F) on June 7, 2026 and have stayed that much higher. Its daily ups and downs didn't change, so the sensor doesn't appear to have moved closer to the surface. It also applies to Hoodsport in Hood Canal, which sent no readings from September 9 to November 2, 2026, and whose readings on either side of the gap are in question.</td></tr>
   </tbody>
 </table>
 </div>
@@ -153,6 +153,7 @@ thead th { background: #EEF0F4; }
   <li>A heatwave must run up to the latest day; Hobday et al. also join events separated by gaps of 2 days or less, which this site does not.</li>
   <li>Reference periods differ between stations, and some are shorter than the 30 years Hobday et al. recommend.</li>
   <li>Heatwaves are not graded by intensity (the moderate to extreme categories of Hobday et al. 2018).</li>
+  <li>A day counts toward a heatwave only if it is also at least 1 °C (1.8 °F) above normal (below normal for a cold spell). Hobday et al. set no such minimum. It is added here because at some stations, such as central Puget Sound in the fall, the normal range is so narrow that the 90th percentile is less than 0.5 °C (0.9 °F) above normal, and a departure that small would otherwise count.</li>
 </ul>
 
 <h2 id="tides">Tides and flooding</h2>
