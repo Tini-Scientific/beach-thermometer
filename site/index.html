@@ -744,6 +744,7 @@ function btSetMode(m) {
         b.setAttribute('aria-pressed', b.dataset.mode === m);
     });
     map.closePopup();
+    setUrl(null);
     renderCbar();
     const [f, c] = m === 'sea' ? ['ft', 'm'] : ['°F', '°C'];
     document.querySelector('.bt-units [data-unit="f"]').textContent = f;
@@ -1098,6 +1099,17 @@ function returnFocus() {
     if (opener && opener.isConnected) opener.focus({preventScroll: true});
     opener = null;
 }
+// the address bar follows the open card (?station=46026, plus view=sea in the tide view), so it can be
+// copied and shared; push adds a history entry (the phone sheet, which Back closes)
+function setUrl(id, push) {
+    const p = new URLSearchParams(location.search);
+    if (id) p.set('station', id); else p.delete('station');
+    if (mode === 'sea') p.set('view', 'sea'); else p.delete('view');
+    const q = p.toString();
+    const url = location.pathname + (q ? `?${q}` : '') + location.hash;
+    if (push) history.pushState({sheet: id}, '', url);
+    else history.replaceState(id ? history.state : null, '', url);
+}
 const BEHIND_SHEET = ['header', '#map', '#bt-skip'];
 function openSheet(s) {
     closeSheet(true);
@@ -1113,7 +1125,7 @@ function openSheet(s) {
     document.body.appendChild(div);
     BEHIND_SHEET.forEach(q => { document.querySelector(q).inert = true; });
     focusCard(div);
-    history.pushState({sheet: s.id}, '');
+    setUrl(s.id, true);
     countOpen(s);
     openCardChart(s);
 }
@@ -1122,7 +1134,7 @@ function closeSheet(replacing) {
     if (!sheet) return;
     sheet.remove();
     BEHIND_SHEET.forEach(q => { document.querySelector(q).inert = false; });
-    if (replacing) history.replaceState(null, '');
+    if (replacing) setUrl(null);
     else returnFocus();
 }
 window.addEventListener('popstate', () => closeSheet());
@@ -1554,6 +1566,7 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
             el.setAttribute('role', 'dialog');
             el.setAttribute('aria-labelledby', `bt-name-${s.id}`);
             focusCard(el);
+            setUrl(s.id);
             countOpen(s);
             e.popup.getElement().querySelectorAll('.bt-age').forEach(el => { el.textContent = relAge(Number(el.dataset.t)); });
             openCardChart(s);
@@ -1561,17 +1574,26 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
         // closed with Escape or ✕ (focus was in the card): back to the opener; closed by clicking
         // elsewhere on the map: leave focus where the click put it
         m.on('popupclose', e => {
+            setUrl(null);
             const a = document.activeElement;
             if (a === document.body || e.popup.getElement().contains(a)) returnFocus();
             else opener = null;
         });
         markers[s.id] = m;
-        // ?station=46026 opens that buoy's popup (shareable links)
-        if (new URLSearchParams(location.search).get('station') === s.id) openStation(s.id);
     });
     map.addControl(new ListCtrl());  // also holds the summary counts
-    // ?view=sea opens the map in the sea level view
-    if (new URLSearchParams(location.search).get('view') === 'sea') seaReady.then(() => btSetMode('sea'));
+    // shareable links: ?view=sea opens the map in the sea level view, ?station=46026 opens that station's
+    // card (after the view switch, which closes cards). The station comes off the address until the card
+    // opens and puts it back, so on a phone Back closes the sheet and leaves a plain address.
+    const params = new URLSearchParams(location.search);
+    const want = params.get('station');
+    const openWanted = () => {
+        if (!want || !markers[want]) return;
+        setUrl(null);
+        if (map.hasLayer(markers[want])) openStation(want);  // e.g. not a buoy in the tide view
+    };
+    if (params.get('view') === 'sea') seaReady.then(() => btSetMode('sea')).then(openWanted);
+    else openWanted();
 }).catch(() => {
     document.getElementById('map').insertAdjacentHTML('beforeend', '<div class="bt-font" style="position:absolute;'
         + 'top:10px;left:60px;z-index:1000;background:white;padding:6px 10px;border-radius:4px;">Data unavailable right now</div>');
