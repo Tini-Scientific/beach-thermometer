@@ -762,7 +762,8 @@ function btSetMode(m) {
 function seaPopupHtml(s) {
     const e = sea[s.id] || {};
     const head = `<h2 class="bt-name" id="bt-name-${s.id}" tabindex="-1">${s.name}</h2>`
-               + `<div class="bt-sub">Tide station · NOAA CO-OPS ${s.coops}${place(s) ? ` · ${place(s)}` : ''}</div>`;
+               + `<div class="bt-sub">${s.level_only ? 'Tide station (water level only)' : 'Tide station'} · NOAA CO-OPS ${s.coops}`
+               + `${place(s) ? ` · ${place(s)}` : ''}</div>`;
     const links = `<span>Data: ${link(`https://tidesandcurrents.noaa.gov/waterlevels.html?id=${s.coops}`, `CO-OPS ${s.coops}`)}`
                 + ` · ${link('https://tidesandcurrents.noaa.gov/inundationdb/', 'NOAA Coastal Inundation Dashboard')}</span>`;
     if (e.excess_m == null) {  // no readings, or none recent enough to describe the water now (sealevel.py's STALE_HOURS)
@@ -1157,7 +1158,7 @@ function openCardChart(s) {
 }
 function openStation(id) {
     opener = document.activeElement;  // the table row's button
-    if (useSheet()) openSheet(latest.stations.find(s => s.id === id));
+    if (useSheet()) openSheet(stationList.find(s => s.id === id));
     else {
         // a card taller than the map would pan the map until the station is off screen (far north for
         // Washington): cap its height so it scrolls inside, leaving room for the controls along the top
@@ -1173,9 +1174,13 @@ const STATES = {all: 'All', WA: 'Washington', OR: 'Oregon', CA: 'California'};
 // each state's coast, north to south (with a little of its neighbors), so zooming to a state shows all of it,
 // not just the span of its stations (Washington's southernmost is ~50 km north of the Columbia River)
 const STATE_LATS = {WA: [49.1, 45.9], OR: [46.4, 41.8], CA: [42.1, 32.4]};
-const stateOf = s => (s.lat >= 46.25 ? 'WA' : s.lat >= 42 ? 'OR' : 'CA');
+const stateOf = s => s.state || (s.lat >= 46.25 ? 'WA' : s.lat >= 42 ? 'OR' : 'CA');  // gauges on the Columbia carry theirs
 let shownState = 'all';
 const inState = s => shownState === 'all' || stateOf(s) === shownState;
+// on the map and in the list for the view showing: tide stations in the sea level view; in the temperature view
+// the types not hidden, never the water-level-only gauges (no temperature)
+const inView = s => (mode === 'sea' ? s.type === 'tide' : !s.level_only && !hiddenTypes.has(s.type));
+const hasTemp = s => !s.level_only;
 // marker shape in a 24 x 24 box: circle (CDIP), diamond (NDBC), pentagon (IOOS mooring),
 // square (tide) or downward triangle (shore), radius r
 function shape(type, r, attrs) {
@@ -1248,7 +1253,7 @@ function nameMarker(m, s) {
 function placeMarker(s) {
     const m = markers[s.id];
     if (!m) return;
-    if (mode === 'sea' ? s.type !== 'tide' : hiddenTypes.has(s.type)) { map.removeLayer(m); return; }
+    if (!inView(s)) { map.removeLayer(m); return; }
     m.setIcon(markerIcon(s));  // rebuilds the marker's element, so name it again
     if (map.hasLayer(m)) nameMarker(m, s);
     else m.addTo(map);  // named on 'add'
@@ -1273,9 +1278,9 @@ const ListCtrl = L.Control.extend({
             return sortDir * (typeof va === 'string' ? va.localeCompare(vb) : va - vb);
         };
         const filters = `<button data-type="all" aria-pressed="true"><span class="bt-all-mk" aria-hidden="true"></span>All types`
-            + `<span class="n">${stationList.length}</span></button>` + Object.entries(TYPES).map(([t, label]) =>
+            + `<span class="n">${stationList.filter(hasTemp).length}</span></button>` + Object.entries(TYPES).map(([t, label]) =>
             `<button data-type="${t}" aria-pressed="true">${markerHtml({type: t, legend: true}, true)}${label}`
-            + `<span class="n">${stationList.filter(s => s.type === t).length}</span></button>`).join('');
+            + `<span class="n">${stationList.filter(s => hasTemp(s) && s.type === t).length}</span></button>`).join('');
         // aria-sort of each column in its natural order (dir 1)
         const naturalSort = {name: 'ascending', loc: 'descending', temp: 'descending', anom: 'descending',
                              excess: 'descending', flood: 'descending'};
@@ -1321,14 +1326,13 @@ const ListCtrl = L.Control.extend({
                             : `<td class="c-anom">${none}</td>`);
         };
         const fill = () => {
-            const ofType = s => (mode === 'sea' ? s.type === 'tide' : !hiddenTypes.has(s.type));
-            const shown = s => inState(s) && ofType(s);
+            const shown = s => inState(s) && inView(s);
             div.querySelectorAll('.bt-states button').forEach(b => {  // stations each state button would list
                 const k = b.dataset.state;
-                b.querySelector('.n').textContent = stationList.filter(s => ofType(s) && (k === 'all' || stateOf(s) === k)).length;
+                b.querySelector('.n').textContent = stationList.filter(s => inView(s) && (k === 'all' || stateOf(s) === k)).length;
             });
             div.querySelectorAll('.bt-filter button').forEach(b => {  // type counts for the state shown
-                b.querySelector('.n').textContent = stationList.filter(s => (b.dataset.type === 'all' || s.type === b.dataset.type) && inState(s)).length;
+                b.querySelector('.n').textContent = stationList.filter(s => hasTemp(s) && (b.dataset.type === 'all' || s.type === b.dataset.type) && inState(s)).length;
             });
             div.querySelector('.bt-stations tbody').innerHTML = stationList.filter(shown).sort(compare).map(s =>
                 `<tr data-id="${s.id}"><td class="c-sym">${mode === 'sea' ? seaMarkerHtml(s, true) : markerHtml(s, true)}`
@@ -1397,7 +1401,7 @@ const ListCtrl = L.Control.extend({
                 q('bt-updated').textContent = pacific(seaLatest.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
             } else {
                 q('bt-l-reporting').textContent = 'Stations reporting';
-                const here = stationList.filter(inState);
+                const here = stationList.filter(s => hasTemp(s) && inState(s));
                 q('bt-n-reporting').textContent = `${here.filter(s => s.last_c != null && !isStale(s)).length} of ${here.length}`;
                 q('bt-l-alert').textContent = 'Suspected marine heatwaves';
                 q('bt-n-heatwave').textContent = here.filter(s => s.status === 'heatwave').length;
@@ -1420,7 +1424,7 @@ const ListCtrl = L.Control.extend({
             const b = div.querySelector(`.bt-filter [data-type="${t}"]`);
             b.classList.toggle('off', !on);
             b.setAttribute('aria-pressed', String(on));
-            stationList.filter(s => s.type === t).forEach(s => (on ? markers[s.id].addTo(map) : map.removeLayer(markers[s.id])));
+            stationList.filter(s => hasTemp(s) && s.type === t).forEach(s => (on ? markers[s.id].addTo(map) : map.removeLayer(markers[s.id])));
         };
         const markAll = () => {
             const all = div.querySelector('.bt-filter [data-type="all"]'), on = hiddenTypes.size === 0;
@@ -1448,7 +1452,7 @@ const ListCtrl = L.Control.extend({
                 fillSummary();
                 fit();
                 if (shownState === 'all') map.fitBounds(HOME);
-                else map.fitBounds(L.latLngBounds(stationList.filter(inState).map(s => [s.lat, s.lon]))
+                else map.fitBounds(L.latLngBounds(stationList.filter(s => inState(s) && inView(s)).map(s => [s.lat, s.lon]))
                                        .extend(STATE_LATS[shownState].map(lat => [lat, stationList.find(inState).lon])),
                                    {paddingTopLeft: [window.innerWidth > 540 ? div.offsetWidth + 20 : 20, 20],
                                     paddingBottomRight: [20, 20]});
@@ -1541,18 +1545,23 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden && Date.now() - lastCheck > 5 * 60e3) refreshData();
 });
 
-fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => {
+// the station list waits for the sea level data too (seaReady settles either way), which brings the gauges
+// that measure only water level: tide stations shown in the sea level view alone
+Promise.all([fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()), seaReady]).then(([data]) => {
     latest = data;
     markStale(data);
-    stationList = data.stations;
+    const levelOnly = sea ? seaLatest.stations.filter(e => e.level_only).map(e => ({
+        id: e.id, name: e.name, type: 'tide', coops: e.coops, long_name: e.long_name, state: e.state,
+        lat: e.lat, lon: e.lon, level_only: true})) : [];
+    stationList = [...data.stations, ...levelOnly];
     // north to south, so Tab moves steadily down the coast
-    [...data.stations].sort((a, b) => b.lat - a.lat).forEach(s => {
+    [...stationList].sort((a, b) => b.lat - a.lat).forEach(s => {
         const m = L.marker([s.lat, s.lon], {icon: markerIcon(s)});
         m.bindTooltip(() => markerLabel(s), {className: 'bt-font'});  // worded for the view showing when it opens
         // the same words for screen readers; Leaflet rebuilds the marker's element each time a type filter
         // or the view puts it back on the map, so name it on every add
         m.on('add', () => nameMarker(m, s));
-        m.addTo(map);
+        if (inView(s)) m.addTo(map);
         // pan popups clear of the zoom / layer / unit controls along the top
         m.bindPopup(() => cardHtml(s), {maxWidth: 500, minWidth: 300, autoPanPaddingTopLeft: [10, 95],
                                         autoPanPaddingBottomRight: [10, 10]});
@@ -1592,8 +1601,9 @@ fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()).then(data => 
         setUrl(null);
         if (map.hasLayer(markers[want])) openStation(want);  // e.g. not a buoy in the tide view
     };
-    if (params.get('view') === 'sea') seaReady.then(() => btSetMode('sea')).then(openWanted);
-    else openWanted();
+    // a water-level-only gauge opens in the sea level view, even without view=sea
+    if (params.get('view') === 'sea' || (stationList.find(s => s.id === want) || {}).level_only) btSetMode('sea');
+    openWanted();
 }).catch(() => {
     document.getElementById('map').insertAdjacentHTML('beforeend', '<div class="bt-font" style="position:absolute;'
         + 'top:10px;left:60px;z-index:1000;background:white;padding:6px 10px;border-radius:4px;">Data unavailable right now</div>');

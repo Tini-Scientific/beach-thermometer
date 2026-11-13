@@ -157,7 +157,7 @@ thead th { background: #EEF0F4; }
 </ul>
 
 <h2 id="tides">Tides and flooding</h2>
-<p>The Tides &amp; flooding view shows the 24 NOAA tide stations, using water level data from the CO-OPS data API, collected every hour.</p>
+<p>The Tides &amp; flooding view shows 41 NOAA tide stations, using water level data from the CO-OPS data API, collected every hour. 24 of them also measure water temperature and appear in the temperature view. The other 17 appear in this view alone: every other active NOAA water level station in Washington, Oregon and California, including nine on the Columbia River from Cape Disappointment and Astoria up to Vancouver, and Santa Barbara, Santa Monica and Long Beach. The Port of West Sacramento, inland at the end of the Sacramento ship channel, is left out. At the river gauges, the difference from the predicted tide is mostly river flow, which rises with rain and snowmelt, rather than the ocean.</p>
 <ul>
   <li><strong>Measured water level:</strong> 6-minute readings, in feet or meters above Mean Lower Low Water (MLLW, the average of each day's lowest tide), the same scale as tide tables. Each card gives how far the water is now from the nearest flood level, and NOAA's next predicted high tide, as published in its tide tables. Recent readings are preliminary: NOAA verifies them weeks to months later and may revise them. Each station's card offers its past 30 days of 6-minute water levels, predicted tides and their difference as a CSV file. Readings that NOAA's automated checks flag for a sudden jump or a value beyond the sensor's limits are dropped. Charts use readings every 30 minutes over the past 30 days.</li>
   <li><strong>Predicted tide:</strong> NOAA's tide predictions for each station, calculated from its tidal constituents (harmonic analysis of its long record), for the past 30 days and the next 48 hours.</li>
@@ -165,7 +165,7 @@ thead th { background: #EEF0F4; }
   <li><strong>25-hour average:</strong> the chart of measured minus predicted also shows its trailing 25-hour average, which smooths out what remains of the tide in the difference (the simplest form of the tidal filter described by Godin 1972; see also Thomson &amp; Emery 2014). Because it averages the previous 25 hours, it lags real changes by about 12 hours.</li>
 </ul>
 <h3>Flood levels</h3>
-<p>Flood levels are the National Weather Service's minor, moderate and major coastal flood thresholds for each station, as published in NOAA's station metadata. These are the water levels at which flooding begins to affect the area near the gauge. As of November 2026, 8 of the 15 stations have a minor flood level, 3 of those also have a moderate level, and none has a major level; stations without NWS levels show water levels but no flood status.</p>
+<p>Flood levels are the National Weather Service's minor, moderate and major coastal flood thresholds for each station, as published in NOAA's station metadata. These are the water levels at which flooding begins to affect the area near the gauge. As of November 2026, 28 of the 41 stations have a minor flood level, 19 a moderate level and 11 a major level; stations without NWS levels show water levels but no flood status.</p>
 <p>A station is marked as having <strong>reached a flood level</strong> when the measured water level stayed at or above that level for at least two readings in a row (12 minutes) during the past hour, so a single unusual reading can't raise it. Markers show one, two or three rings for minor, moderate or major. A station whose latest reading is more than 3 hours old gets no flood status.</p>
 <p>A flood level reached at a gauge does not mean that flooding is happening everywhere nearby, and flooding can happen while a gauge stays below its flood level: gauges measure the still water level in harbors, not waves running up beaches, and local flooding depends on the shape of the shore. These flags are not warnings; the National Weather Service issues official coastal flood advisories and warnings.</p>
 
@@ -222,7 +222,7 @@ thead th { background: #EEF0F4; }
   <li>Station operators: University of Washington, Oregon State University, NSF Ocean Observatories Initiative, MBARI, Scripps Institution of Oceanography, UC Davis Bodega Marine Laboratory, SCCOOS, CeNCOOS, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center and the Exploratorium.</li>
 </ul>
 
-<p class="updated">Questions about these methods: <a href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. This page was last updated on November 9, 2026.</p>
+<p class="updated">Questions about these methods: <a href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. This page was last updated on November 13, 2026.</p>
 </main>
 </body>
 </html>

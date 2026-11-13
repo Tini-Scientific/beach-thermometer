@@ -20,7 +20,7 @@ site on GitHub Pages.
 | `site/assets/` | Logos (header, and a purple-text one for the email) |
 | `update.py` | Hourly job: fetch NDBC, update the archive, write `site/data/`, then the feed and sea level |
 | `feed.py` | Daily marine heatwave summary as an Atom feed (`site/feed.xml`), from `data/feed/entries.json` |
-| `sealevel.py` | Water level, predicted tide and NWS flood levels at the NOAA tide stations (`site/data/sealevel*`) |
+| `sealevel.py` | Water level, predicted tide and NWS flood levels at the NOAA tide stations, plus the water-level-only gauges it lists (shown only in the Tides & flooding view) (`site/data/sealevel*`) |
 | `build_climatology.py` | One-time setup: `data/stations.csv` and `data/climatology.csv` |
 | `ndbc.py` | Shared NDBC file reader |
 | `ioos.py` | Mooring and shore-station data from the IOOS, NANOOS and UW ERDDAP servers (moorings: shallowest sensor within 3 m; despiked) |

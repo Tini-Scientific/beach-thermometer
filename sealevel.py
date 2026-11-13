@@ -1,6 +1,6 @@
 """Sea level at the NOAA tide stations, for update.py (or run on its own: python sealevel.py).
 
-For each tide station in data/stations.csv (its CO-OPS id), from the CO-OPS API:
+For each tide station in data/stations.csv (its CO-OPS id), and the gauges in LEVEL_ONLY, from the CO-OPS API:
 - the measured water level and the predicted tide (6-minute data, metres above MLLW),
   thinned to every STEP_MIN minutes: the past RECENT_DAYS and, for the tide, FORECAST_HOURS ahead.
   Recent measured readings are preliminary: NOAA reviews them weeks to months later and may revise
@@ -36,6 +36,31 @@ FORECAST_HOURS = 48
 STEP_MIN = 30           # the 6-minute readings fall on :00 and :30, which both series share
 STALE_HOURS = 3
 LEVELS = ['minor', 'moderate', 'major']
+# Tide gauges not in data/stations.csv (no water temperature: none measured, a sensor switched off, or fresh
+# river water), shown only in the site's Tides & flooding view. Every active CO-OPS water level station in
+# Washington, Oregon and California not already listed (as of November 2026), except the Port of West
+# Sacramento (inland, at the end of the ship channel). By CO-OPS id, which is also their id on the site: name,
+# NOAA's station name for the card, state (the Columbia River is the border, which the site's latitude rule
+# would get wrong), latitude, longitude.
+LEVEL_ONLY = {
+    '9449424': ('Cherry Point', 'Cherry Point, WA', 'WA', 48.863, -122.759),
+    '9449880': ('Friday Harbor', 'Friday Harbor, WA', 'WA', 48.545, -123.013),
+    '9447130': ('Seattle', 'Seattle, WA', 'WA', 47.603, -122.339),
+    '9445958': ('Bremerton', 'Bremerton, WA', 'WA', 47.562, -122.623),
+    '9440581': ('Cape Disappointment', 'Cape Disappointment, WA', 'WA', 46.281, -124.046),
+    '9440569': ('Skamokawa', 'Skamokawa, WA', 'WA', 46.27, -123.457),
+    '9439040': ('Astoria (Tongue Point)', 'Astoria, OR', 'OR', 46.207, -123.768),
+    '9439099': ('Wauna', 'Wauna, OR', 'OR', 46.16, -123.405),
+    '9440422': ('Longview', 'Longview, WA', 'WA', 46.106, -122.954),
+    '9440357': ('Kalama', 'TEMCO Kalama Terminal, WA', 'WA', 45.987, -122.837),
+    '9439201': ('St. Helens', 'St Helens, OR', 'OR', 45.865, -122.797),
+    '9440083': ('Vancouver', 'Vancouver, WA', 'WA', 45.631, -122.696),
+    '9437540': ('Garibaldi (Tillamook Bay)', 'Garibaldi, OR', 'OR', 45.555, -123.919),
+    '9432780': ('Charleston (Coos Bay)', 'Charleston, OR', 'OR', 43.345, -124.322),
+    '9411340': ('Santa Barbara', 'Santa Barbara, CA', 'CA', 34.405, -119.692),
+    '9410840': ('Santa Monica', 'Santa Monica, CA', 'CA', 34.008, -118.5),
+    '9410678': ('Long Beach (Fire Boat Pier)', 'Long Beach Fire Boat Pier, CA', 'CA', 33.748, -118.216),
+}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SITE_DATA = os.path.join(HERE, 'site', 'data')
@@ -128,15 +153,19 @@ def update_sealevel(now):
     fmt = '%Y%m%d %H:%M'
     begin = now - pd.Timedelta(days=RECENT_DAYS)
     entries = []
-    for _, info in stations[stations['type'] == 'tide'].iterrows():
-        sid, coops = info['station'], info['coops']
+    tides = [(info['station'], info['coops'], {}) for _, info in stations[stations['type'] == 'tide'].iterrows()]
+    # the page has no other record of the water-level-only gauges, so their entries carry their names and positions
+    tides += [(coops, coops, {'level_only': True, 'name': name, 'long_name': f'{coops} - {noaa}', 'state': state,
+                              'lat': lat, 'lon': lon})
+              for coops, (name, noaa, state, lat, lon) in LEVEL_ONLY.items()]
+    for sid, coops, about in tides:
         verified = []
         obs = series({'product': 'water_level', 'station': coops, 'begin_date': f'{begin:{fmt}}', 'end_date': f'{now:{fmt}}'},
                      verified)
         pred = series({'product': 'predictions', 'interval': '6', 'station': coops, 'begin_date': f'{begin:{fmt}}',
                        'end_date': f'{now + pd.Timedelta(hours=FORECAST_HOURS):{fmt}}'})
         levels, mhhw = flood_levels(coops)
-        entry = {'id': sid, 'coops': coops, 'flood_levels_m': levels, 'mhhw_m': mhhw,
+        entry = {'id': sid, 'coops': coops, **about, 'flood_levels_m': levels, 'mhhw_m': mhhw,
                  # readings after this are preliminary; None when none in the window are verified yet
                  'verified_until_ms': int(max(verified).timestamp() * 1000) if verified else None}
         if len(obs):
