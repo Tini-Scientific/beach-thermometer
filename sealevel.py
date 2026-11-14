@@ -24,6 +24,7 @@ Nothing is archived: CO-OPS keeps the full record.
 """
 import json
 import os
+import time
 
 import pandas as pd
 
@@ -72,12 +73,31 @@ def timed(values):
     return pd.Series(values, dtype=float, index=pd.DatetimeIndex(list(values), tz='UTC') if not values else None)
 
 
+def coops_get(params, tries=3):
+    """A CO-OPS data API reply as a dict ({} when unavailable). A refused or failed request (CO-OPS can turn
+    away a quick run of requests from GitHub's shared servers) is tried again after a pause, and logged if it
+    still fails, so the hourly job's output says why a station has no data; 'No data was found' is an answer."""
+    why = ''
+    for attempt in range(tries):
+        if attempt:
+            time.sleep(10 * attempt)
+        try:
+            r = http.get(API, params=params, timeout=60)
+            body = r.json() if r.status_code == 200 else {}
+            why = (body.get('error') or {}).get('message', '') if r.status_code == 200 else f'HTTP {r.status_code}'
+        except Exception as e:  # a timeout, or a reply that isn't JSON
+            body, why = {}, repr(e)
+        if not why or 'no data was found' in why.lower():
+            return body
+    print(f"CO-OPS {params.get('product')} for {params.get('station')} failed: {why[:200]}")
+    return {}
+
+
 def series(params, verified=None):
     """A CO-OPS product as a Series of metres above MLLW, indexed by UTC time; empty when unavailable.
     With a list as `verified`, appends the times of verified readings (quality 'v') to it."""
-    r = http.get(API, params={'datum': 'MLLW', 'units': 'metric', 'time_zone': 'gmt', 'format': 'json',
-                              'application': 'beach-thermometer', **params}, timeout=60)
-    body = r.json() if r.status_code == 200 else {}
+    body = coops_get({'datum': 'MLLW', 'units': 'metric', 'time_zone': 'gmt', 'format': 'json',
+                      'application': 'beach-thermometer', **params})
     rows = body.get('data') or body.get('predictions') or []  # an error comes back as {'error': ...}
     # water level flags 'O,F,R,L': R (rate of change) or L (beyond the sensor's limits) mark a suspect reading
     ok = lambda x: x.get('v') not in (None, '') and x.get('f', '0,0,0,0').split(',')[2:] == ['0', '0']
@@ -135,11 +155,9 @@ def high_tides(coops, now):
     """NOAA's predicted high tides (its high/low predictions, type 'H') over the two days after `now`:
     a Series of metres above MLLW by UTC time; empty when unavailable."""
     fmt = '%Y%m%d %H:%M'
-    r = http.get(API, params={'product': 'predictions', 'interval': 'hilo', 'station': coops, 'datum': 'MLLW',
-                              'units': 'metric', 'time_zone': 'gmt', 'format': 'json', 'application': 'beach-thermometer',
-                              'begin_date': f'{now:{fmt}}',
-                              'end_date': f'{now + pd.Timedelta(days=2):{fmt}}'}, timeout=60)
-    rows = (r.json().get('predictions') or []) if r.status_code == 200 else []
+    rows = coops_get({'product': 'predictions', 'interval': 'hilo', 'station': coops, 'datum': 'MLLW',
+                      'units': 'metric', 'time_zone': 'gmt', 'format': 'json', 'application': 'beach-thermometer',
+                      'begin_date': f'{now:{fmt}}', 'end_date': f'{now + pd.Timedelta(days=2):{fmt}}'}).get('predictions') or []
     return timed({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if x.get('type') == 'H'}).sort_index()
 
 
@@ -159,6 +177,7 @@ def update_sealevel(now):
                               'lat': lat, 'lon': lon})
               for coops, (name, noaa, state, lat, lon) in LEVEL_ONLY.items()]
     for sid, coops, about in tides:
+        time.sleep(0.5)  # be gentle with CO-OPS: a run is ~4 requests for each of ~40 stations
         verified = []
         obs = series({'product': 'water_level', 'station': coops, 'begin_date': f'{begin:{fmt}}', 'end_date': f'{now:{fmt}}'},
                      verified)
