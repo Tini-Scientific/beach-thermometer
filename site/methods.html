@@ -86,6 +86,7 @@ thead th { background: #EEF0F4; }
     <li><a href="#normal">Normal ranges (climatology)</a></li>
     <li><a href="#heatwaves">Suspected marine heatwaves and other labels</a></li>
     <li><a href="#tides">Tides and flooding</a></li>
+    <li><a href="#timeline">Looking back: the time slider</a></li>
     <li><a href="#email">The daily email</a></li>
     <li><a href="#limits">Limitations</a></li>
     <li><a href="#official">Official sources</a></li>
@@ -169,6 +170,14 @@ thead th { background: #EEF0F4; }
 <p>A station is marked as having <strong>reached a flood level</strong> when the measured water level stayed at or above that level for at least two readings in a row (12 minutes) during the past hour, so a single unusual reading can't raise it. Markers show one, two or three rings for minor, moderate or major. A station whose latest reading is more than 3 hours old gets no flood status.</p>
 <p>A flood level reached at a gauge does not mean that flooding is happening everywhere nearby, and flooding can happen while a gauge stays below its flood level: gauges measure the still water level in harbors, not waves running up beaches, and local flooding depends on the shape of the shore. These flags are not warnings; the National Weather Service issues official coastal flood advisories and warnings.</p>
 
+<h2 id="timeline">Looking back: the time slider</h2>
+<p>The slider along the bottom of the map steps back through the past 30 days, one day at a time. Its last step, <strong>Now</strong>, is the map as described above. While it shows an earlier day, the slider shows the date, and the markers, the station table and its counts all show that day. While it plays, the heatwave and flood rings hold still rather than pulsing. Station cards always show the latest readings; their charts mark the time the map shows with a thin vertical line.</p>
+<ul>
+  <li><strong>Temperature view:</strong> each station's daily mean water temperature (the average over a UTC day, as for the normal ranges) and the label it would have had at the end of that day, worked out with the same rules as above from the daily means up to that day. Days are used rather than hours because marine heatwaves are defined on daily means, and hourly temperatures at shallow and harbor stations rise and fall with the sun and the tides. A station with no readings that day is drawn as a hollow outline.</li>
+  <li><strong>Tides &amp; flooding view:</strong> each station's measured water level minus the predicted tide, averaged over the day (midnight to midnight, Pacific time), and the highest flood level the water held for at least two readings in a row (12 minutes) at any time that day, the same rule as for now. The daily mean takes out the tide's rise and fall, leaving the water that storms, winds and ocean conditions add or remove; a flood level reached at one high tide still shows for that day.</li>
+</ul>
+<p>The past days are recalculated every hour from the same data as the rest of the site, so they change if operators correct or remove readings, and a station's label on a past day uses the data available now, not what was available that day.</p>
+
 <h2 id="email">The daily email</h2>
 <p>Once a day, at about 7:20 am Pacific time, the site posts a summary to its feed (and the daily email built from it): which stations started or ended a suspected marine heatwave since the day before, and which are continuing, grouped by region from north to south. A station that stops reporting during a heatwave is listed separately and not counted as ended. The summary uses the same rules as the map.</p>
 
@@ -222,7 +231,7 @@ thead th { background: #EEF0F4; }
   <li>Station operators: University of Washington, Oregon State University, NSF Ocean Observatories Initiative, MBARI, Scripps Institution of Oceanography, UC Davis Bodega Marine Laboratory, SCCOOS, CeNCOOS, Cal Poly Humboldt, Cal Poly San Luis Obispo, UC Santa Cruz, Moss Landing Marine Laboratories, Monterey Bay Aquarium, SFSU Romberg Tiburon Center and the Exploratorium.</li>
 </ul>
 
-<p class="updated">Questions about these methods: <a href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. This page was last updated on November 13, 2026.</p>
+<p class="updated">Questions about these methods: <a href="mailto:waves@tiniscientific.com">waves@tiniscientific.com</a>. This page was last updated on November 14, 2026.</p>
 </main>
 </body>
 </html>

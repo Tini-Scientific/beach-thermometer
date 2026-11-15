@@ -13,6 +13,8 @@
    - site/data/stations/{id}.json: the past RECENT_DAYS as hourly means plus
      the climatology (mean, 10th and 90th percentile by day of year).
    - site/data/stations/{id}.csv: the same hourly data for download.
+   - site/data/timeline.json: for the map's time slider, every station's daily mean, difference from
+     normal and status on each of the past TIMELINE_DAYS complete days (past_days).
    The station's daily means (data/daily/{id}.csv, committed: one small file a station, kept for good;
    backfill_daily.py filled the year before the archive began) get the complete days of the hourly window,
    and the past YEAR_DAYS of them go in its JSON for the chart's Year view.
@@ -52,6 +54,7 @@ MHW_MIN_ANOM_C = 1.0
 STALE_HOURS = 6
 STALE_DAYS = 14
 YEAR_DAYS = 365         # the cards' Year view: daily means (data/daily/)
+TIMELINE_DAYS = 29      # the map's time slider: the past 29 complete UTC days, then now
 MIN_HOURS_PER_DAY = 12  # a day's mean needs this many hourly means (as for the climatology)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -92,6 +95,38 @@ SUSPECT = {
                                   'and its readings before and after the gap are in question. Until it has '
                                   'reported steadily for a while, no heatwave or cold-spell status is given here.'),
 }
+
+
+def past_days(sid, hourly, cs, has_clim, days):
+    """For the map's time slider: each of `days` (UTC midnights), the station's daily mean (°C), its difference
+    from normal and its status as the site would have given it at the end of that day: the same rule as
+    for now (heatwave or cold spell after MHW_MIN_DAYS days in a row past the 90th / 10th percentile and at
+    least MHW_MIN_ANOM_C from normal, else warmer, cooler or normal), on the daily means up to that day.
+    None for a day without readings."""
+    daily = hourly.resample('D').mean().dropna()
+    c, a, s = [], [], []
+    for day in days:
+        upto = daily[daily.index <= day]
+        if not len(upto) or upto.index[-1] != day:
+            c.append(None), a.append(None), s.append(None)
+            continue
+        v = float(upto.iloc[-1])
+        c.append(round(v, 2))
+        if sid in SUSPECT and day >= pd.Timestamp(SUSPECT[sid][0], tz='UTC'):
+            a.append(None), s.append('suspect')
+            continue
+        if not has_clim or pd.isna(cs.loc[day.dayofyear, 'mean_c']):
+            a.append(None), s.append('noclim')
+            continue
+        c_day = cs.loc[upto.index.dayofyear]
+        mean_day = c_day['mean_c'].values
+        hot = streak(list((upto.values > c_day['p90_c'].values) & (upto.values >= mean_day + MHW_MIN_ANOM_C)))
+        cold = streak(list((upto.values < c_day['p10_c'].values) & (upto.values <= mean_day - MHW_MIN_ANOM_C)))
+        anom = v - cs.loc[day.dayofyear, 'mean_c']
+        a.append(round(float(anom), 2))
+        s.append('heatwave' if hot >= MHW_MIN_DAYS else 'coldspell' if cold >= MHW_MIN_DAYS
+                 else 'warmer' if anom > NEAR_NORMAL_C else 'cooler' if anom < -NEAR_NORMAL_C else 'normal')
+    return {'c': c, 'a': a, 's': s}
 
 
 def merge_into_archive(sid, hourly, replace=False):
@@ -182,6 +217,8 @@ def main():
     os.makedirs(os.path.join(SITE_DATA, 'stations'), exist_ok=True)
 
     entries = []
+    timeline_days = [now.floor('D') - pd.Timedelta(days=k) for k in range(TIMELINE_DAYS, 0, -1)]
+    timeline = {}
     for sid, info in stations.iterrows():
         if info['type'] in ('ioos', 'shore'):
             raw = ioos.recent(sid, RECENT_DAYS, info['erddap_var'])
@@ -250,6 +287,7 @@ def main():
             entry = {k: v for k, v in entry.items() if k not in ('anom_c', 'hot_days', 'cold_days', 'streak_is_whole_record')}
             entry['status'] = 'stale'
         entries.append(entry)
+        timeline[sid] = past_days(sid, hourly, cs, has_clim, timeline_days)
         with open(os.path.join(SITE_DATA, 'stations', f'{sid}.json'), 'w') as f:
             json.dump({'id': sid, 't': [int(t.timestamp() * 1000) for t in hourly.index],
                        'daily_t0': int(year_start.timestamp() * 1000), 'daily': clean(year.values),
@@ -262,6 +300,11 @@ def main():
     with open(os.path.join(SITE_DATA, 'latest.json'), 'w') as f:
         json.dump({'generated_ms': int(now.timestamp() * 1000), 'recent_days': RECENT_DAYS, 'stale_days': STALE_DAYS,
                    'stations': entries}, f, indent=1, allow_nan=False)  # NaN isn't valid JSON for browsers
+    # the map's time slider (fetched once the map is up): the past days, oldest first; the slider's last step is now
+    with open(os.path.join(SITE_DATA, 'timeline.json'), 'w') as f:
+        json.dump({'generated_ms': int(now.timestamp() * 1000),
+                   'days_ms': [int(d.timestamp() * 1000) for d in timeline_days], 'stations': timeline},
+                  f, separators=(',', ':'), allow_nan=False)
     counts = {s: sum(e.get('status') == s for e in entries)
               for s in ['heatwave', 'warmer', 'normal', 'cooler', 'coldspell', 'noclim', 'suspect', 'stale']}
     print(f"{now:%Y-%m-%d %H:%M} UTC: {sum('status' in e for e in entries)}/{len(entries)} buoys reporting; {counts}")

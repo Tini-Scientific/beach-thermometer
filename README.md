@@ -18,9 +18,9 @@ site on GitHub Pages.
 | `site/index.html` | The map (Leaflet + Chart.js), with Temperature and Tides & flooding views; reads `site/data/` in the browser |
 | `site/methods.html`, `site/accessibility.html` | Methods page and accessibility statement |
 | `site/assets/` | Logos (header, and a purple-text one for the email) |
-| `update.py` | Hourly job: fetch NDBC, update the archive, write `site/data/`, then the feed and sea level |
+| `update.py` | Hourly job: fetch NDBC, update the archive, write `site/data/` (including `timeline.json`, the past 29 days for the map's time slider), then the feed and sea level |
 | `feed.py` | Daily marine heatwave summary as an Atom feed (`site/feed.xml`), from `data/feed/entries.json` |
-| `sealevel.py` | Water level, predicted tide and NWS flood levels at the NOAA tide stations, plus the water-level-only gauges it lists (shown only in the Tides & flooding view) (`site/data/sealevel*`) |
+| `sealevel.py` | Water level, predicted tide and NWS flood levels at the NOAA tide stations, plus the water-level-only gauges it lists (shown only in the Tides & flooding view) (`site/data/sealevel*`, including `sealevel_timeline.json`, the past 29 days as daily means for the time slider) |
 | `build_climatology.py` | One-time setup: `data/stations.csv` and `data/climatology.csv` |
 | `ndbc.py` | Shared NDBC file reader |
 | `ioos.py` | Mooring and shore-station data from the IOOS, NANOOS and UW ERDDAP servers (moorings: shallowest sensor within 3 m; despiked) |

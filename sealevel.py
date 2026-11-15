@@ -20,6 +20,8 @@ Writes (not committed; published to GitHub Pages):
 - site/data/sealevel.json: per station, the latest water level, excess and flood status.
 - site/data/sealevel/{id}.json: the measured and predicted series for the station's chart.
 - site/data/sealevel/{id}.csv: the same at full 6-minute resolution, for download.
+- site/data/sealevel_timeline.json: each station's daily mean excess and the highest flood level reached
+  each day (Pacific time) over the past 29 complete days, for the map's time slider.
 Nothing is archived: CO-OPS keeps the full record.
 """
 import json
@@ -36,6 +38,8 @@ RECENT_DAYS = 30        # CO-OPS serves at most 31 days of 6-minute data per req
 FORECAST_HOURS = 48
 STEP_MIN = 30           # the 6-minute readings fall on :00 and :30, which both series share
 STALE_HOURS = 3
+TIMELINE_DAYS = 29      # the map's time slider: the past 29 complete days, Pacific time (30 steps with now)
+PACIFIC = 'America/Los_Angeles'
 LEVELS = ['minor', 'moderate', 'major']
 # Tide gauges not in data/stations.csv (no water temperature: none measured, a sensor switched off, or fresh
 # river water), shown only in the site's Tides & flooding view. Every active CO-OPS water level station in
@@ -161,6 +165,24 @@ def high_tides(coops, now):
     return timed({pd.Timestamp(x['t'], tz='UTC'): float(x['v']) for x in rows if x.get('type') == 'H'}).sort_index()
 
 
+def past_days(obs, pred, levels, days):
+    """For the map's time slider: for each of `days` (midnight, Pacific time), the measured minus predicted
+    water averaged over that day (m) and the highest flood level held for two readings in a row during it
+    (the same rule as for now); None for a day without readings."""
+    x, f = [], []
+    if len(obs):
+        day_of = obs.index.tz_convert(PACIFIC).normalize()
+        excess = (obs - pred.reindex(obs.index)).groupby(day_of).mean()
+        high = obs.groupby(day_of).apply(sustained_high)
+    for d in days:
+        if not len(obs) or d not in excess.index or pd.isna(excess[d]):
+            x.append(None), f.append(None)
+            continue
+        x.append(round(float(excess[d]), 2))
+        f.append(next((k for k in LEVELS[::-1] if k in levels and high[d] >= levels[k]), None))
+    return {'x': x, 'f': f}
+
+
 def thin(s):
     return s[(s.index.minute % STEP_MIN == 0)]
 
@@ -171,6 +193,9 @@ def update_sealevel(now):
     fmt = '%Y%m%d %H:%M'
     begin = now - pd.Timedelta(days=RECENT_DAYS)
     entries = []
+    today = now.tz_convert(PACIFIC).normalize()
+    days = [(today - pd.Timedelta(days=k)).normalize() for k in range(TIMELINE_DAYS, 0, -1)]  # calendar days, across DST
+    timeline = {}
     tides = [(info['station'], info['coops'], {}) for _, info in stations[stations['type'] == 'tide'].iterrows()]
     # the page has no other record of the water-level-only gauges, so their entries carry their names and positions
     tides += [(coops, coops, {'level_only': True, 'name': name, 'long_name': f'{coops} - {noaa}', 'state': state,
@@ -201,6 +226,7 @@ def update_sealevel(now):
                           'excess_m': round(float(excess.mean()), 3) if len(excess) else None,
                           'flood': next((k for k in LEVELS[::-1] if k in levels and high >= levels[k]), None)})
         entries.append(entry)
+        timeline[sid] = past_days(obs, pred, levels, days)
         pd.DataFrame({'water_level_m_mllw': obs, 'predicted_tide_m_mllw': pred,
                       'measured_minus_predicted_m': obs - pred}).round(3).rename_axis('time_utc').to_csv(
             os.path.join(SITE_DATA, 'sealevel', f'{sid}.csv'))
@@ -212,6 +238,9 @@ def update_sealevel(now):
     with open(os.path.join(SITE_DATA, 'sealevel.json'), 'w') as f:
         json.dump({'generated_ms': int(now.timestamp() * 1000), 'recent_days': RECENT_DAYS, 'stale_hours': STALE_HOURS,
                    'stations': entries}, f, indent=1)
+    with open(os.path.join(SITE_DATA, 'sealevel_timeline.json'), 'w') as f:  # the map's time slider; its last step is now
+        json.dump({'generated_ms': int(now.timestamp() * 1000), 'days_ms': [int(d.timestamp() * 1000) for d in days],
+                   'stations': timeline}, f, separators=(',', ':'))
     flooding = [e['id'] for e in entries if e.get('flood')]
     print(f"Sea level: {sum('level_m' in e for e in entries)}/{len(entries)} tide stations reporting; flooding: {flooding or 'none'}")
 

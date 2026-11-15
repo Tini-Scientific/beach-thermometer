@@ -350,6 +350,74 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
     .bt-name { font-size: 16px; }
     .bt-temp { font-size: 20px; }
 }
+
+/* ---- time slider: the map over the past 30 days, a day at a time; its last step is now ---- */
+.bt-time {
+    position: absolute; z-index: 1000; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: min(500px, calc(100% - 440px)); min-width: 380px; box-sizing: border-box;
+    background: var(--ink-panel); border: 1px solid var(--hairline); border-radius: 10px; color: white;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 3px 10px rgba(0,0,0,0.45);
+    padding: 6px 12px 5px; display: grid; grid-template-columns: auto 1fr; column-gap: 10px;
+    grid-template-areas: "ctrl date" "range range" "ticks ticks" "ends ends";
+}
+.bt-time[hidden] { display: none; }
+.bt-time-ctrl { grid-area: ctrl; display: flex; gap: 3px; align-items: center; }
+.bt-time button { font-family: inherit; font-size: 12px; font-weight: 600; color: white; cursor: pointer; }
+.bt-time-ctrl > button, .bt-split > button { height: 26px; min-width: 26px; padding: 0 7px; border-radius: 5px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); }
+.bt-time-ctrl > button:hover { background: rgba(255,255,255,0.16); }
+.bt-split { display: flex; position: relative; margin-right: 3px; }
+.bt-split > button { background: var(--fandango); border-color: var(--fandango); }
+.bt-split > button:hover { background: #B02F8D; }
+.bt-split .bt-play { border-radius: 5px 0 0 5px; min-width: 62px; text-align: left; }
+.bt-split .bt-spd { border-radius: 0 5px 5px 0; border-left: 1px solid rgba(255,255,255,0.5); padding: 0 7px; font-size: 11px; white-space: nowrap; }
+.bt-time button:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+.bt-spd-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 1; background: white; color: var(--ink);
+    border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); padding: 5px; min-width: 130px; }
+.bt-spd-menu[hidden] { display: none; }
+.bt-spd-menu .h { font-size: 11px; font-weight: 600; color: #4B5563; padding: 5px 9px 3px; }
+.bt-time .bt-spd-menu button { display: block; width: 100%; text-align: left; color: var(--ink); background: none; border: none;
+    border-radius: 5px; padding: 6px 9px 6px 26px; font-weight: 400; position: relative; }
+.bt-time .bt-spd-menu button:hover, .bt-time .bt-spd-menu button:focus-visible { background: #F3F4F6; outline: 2px solid var(--fandango); outline-offset: -2px; }
+.bt-time .bt-spd-menu button[aria-checked="true"] { background: #F7E6F2; font-weight: 600; }
+.bt-time .bt-spd-menu button[aria-checked="true"]::before { content: '✓'; position: absolute; left: 9px; color: var(--fandango); }
+.bt-time-date { grid-area: date; text-align: right; align-self: center; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.bt-time-date b { font-size: 13px; color: white; }
+.bt-time-date .bt-now-link { margin-left: 6px; }
+.bt-range { grid-area: range; width: 100%; margin: 5px 0 0; accent-color: var(--fandango); height: 16px; cursor: pointer; }
+.bt-range:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+.bt-ticks { grid-area: ticks; position: relative; height: 6px; margin: 0 7px; }
+.bt-ticks i { position: absolute; top: 0; width: 1px; height: 3px; background: rgba(255,255,255,0.55); }
+.bt-ticks i.wk { height: 6px; background: rgba(255,255,255,0.7); }
+.bt-time-ends { grid-area: ends; display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+.bt-time-ends b { color: white; font-weight: 600; }
+.bt-time-row2 { display: none; }
+.bt-now-link { background: none; border: none; padding: 0; text-decoration: underline; }
+.bt-time .bt-now-link { color: #F49AD9; font-size: 11px; }
+.bt-time-card { margin: 4px 0 0; font-size: 12px; color: #1E0253; background: #EEEAF6; border-left: 3px solid #1E0253;
+    padding: 5px 8px; border-radius: 3px; }
+.bt-time-card[hidden] { display: none; }
+/* while it plays, the heatwave and flood rings hold still (as with reduced motion), so the map doesn't flicker */
+.bt-playing .bt-mk .pulse { animation: none; transform: scale(1.5); stroke-width: 0.8; }
+.bt-playing .bt-mk .pulse.r2 { transform: scale(2); stroke-width: 0.65; }
+.bt-playing .bt-mk .pulse.r3 { transform: scale(2.5); stroke-width: 0.52; }
+/* narrower windows: the zoom and base-map buttons sit above the slider */
+@media (max-width: 800px) { .bt-has-time .leaflet-bottom.leaflet-right { bottom: var(--bt-time-h, 0px); } }
+/* phones and short windows (or zoomed in): one row, Play and the slider, with the date and Back to now under it */
+@media (max-width: 540px), (max-height: 560px) {
+    .bt-time { left: 8px; right: 180px; transform: none; width: auto; min-width: 0; bottom: 24px; padding: 5px 8px 4px;
+        grid-template-areas: "ctrl range" "row2 row2"; column-gap: 8px; }
+    .bt-time-ctrl > button, .bt-time-date, .bt-ticks, .bt-time-ends { display: none; }
+    .bt-split > button { height: 32px; }
+    .bt-split .bt-play { min-width: 34px; padding: 0; text-align: center; }
+    .bt-play-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .bt-range { margin: 0; align-self: center; height: 32px; }
+    .bt-time-row2 { grid-area: row2; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+        font-size: 11px; margin-top: 1px; }
+    /* beside the zoom and base-map buttons rather than under them: the map can be short here */
+    .bt-has-time .leaflet-bottom.leaflet-right { bottom: 0; }
+}
+@media (max-width: 540px) { .bt-time { right: 62px; } }  /* phones: the base-map choice is a small button */
 </style>
 </head>
 <body class="bt-font imperial">  <!-- °F by default; the unit button switches to °C -->
@@ -451,6 +519,37 @@ const charts = {};        // id -> Chart instance
 let mode = 'temp';        // what the map shows: 'temp' or 'sea'
 let seaLatest = null, sea = null;  // sealevel.json, and its stations by id
 const seaData = {}, seaState = {}, seaCharts = {}, seaDiffCharts = {};  // the sea level card's series, window and charts, by id
+// the time slider: timeline.json (temperature, past UTC days) and sealevel_timeline.json (tides, past Pacific days),
+// fetched once the map is up; tpos is the past step the map shows in the view showing, or null for now (the
+// slider's last step). Cards always show the latest readings; their charts mark the time shown.
+const TL = {temp: null, sea: null};
+let tpos = null;
+const tlCount = () => (TL[mode] ? TL[mode].days_ms.length : 0);  // past steps, a day each
+const tlStart = i => TL[mode].days_ms[i];
+// a day in words: a UTC day for temperature (as the daily means and normals), a Pacific day for tides
+const tlDay = (ms, opts) => new Date(ms).toLocaleDateString('en-US', {timeZone: mode === 'sea' ? 'America/Los_Angeles' : 'UTC', ...opts});
+function tlLabel(i = tpos) {
+    return i == null ? 'Now' : tlDay(tlStart(i), {weekday: 'short', month: 'short', day: 'numeric'});
+}
+// a station as the map shows it at the time shown: in the past, that day's daily mean, difference from normal and status
+function atTime(s) {
+    if (tpos == null || mode === 'sea' || !TL.temp) return s;
+    const e = TL.temp.stations[s.id], v = e ? e.c[tpos] : null;
+    return Object.assign({}, s, {last_c: v == null ? undefined : v, anom_c: e && e.a[tpos] != null ? e.a[tpos] : undefined,
+                                 status: v == null ? 'nodata' : e.s[tpos], last_time_ms: tlStart(tpos), past: true});
+}
+// a tide station's sea level entry at the time shown: in the past, that day's mean water vs. the tide and highest flood level
+function seaAt(s) {
+    const e = (sea && sea[s.id]) || {};
+    if (tpos == null || mode !== 'sea' || !TL.sea) return e;
+    const p = TL.sea.stations[s.id];
+    return Object.assign({}, e, {excess_m: p ? p.x[tpos] : null, flood: p ? p.f[tpos] : null, time_ms: tlStart(tpos), past: true});
+}
+// where the cards' charts draw their thin line: the middle of the day shown
+const tlMarkMs = () => (tpos == null || !TL[mode] ? null : tlStart(tpos) + 432e5);
+// the line at the top of a card while the map shows the past
+const cardTimeNote = () => `<p class="bt-time-card"${tpos == null ? ' hidden' : ''}>${tpos == null ? '' : cardTimeText()}</p>`;
+const cardTimeText = () => `Latest readings. The map is showing ${tlLabel()} (daily mean).`;
 const imperial = () => document.body.classList.contains('imperial');
 const conv = c => (c == null ? null : imperial() ? c * 9 / 5 + 32 : c);
 const unit = () => (imperial() ? '°F' : '°C');
@@ -531,7 +630,8 @@ const dataLinks = s => `<span>Data: `
          + link(`${NDBC}/station_page.php?station=${s.id}`, `NDBC ${s.id}`)) + `</span>`;
 
 function popupHtml(s) {
-    const head = `<h2 class="bt-name" id="bt-name-${s.id}" tabindex="-1">${s.name}</h2><div class="bt-sub">${buoyLabel(s)}</div>`;
+    const head = `<h2 class="bt-name" id="bt-name-${s.id}" tabindex="-1">${s.name}</h2><div class="bt-sub">${buoyLabel(s)}</div>`
+               + cardTimeNote();
     if (s.last_c == null) {
         return `<div class="bt-popup">${head}<div class="bt-sec bt-note">No water temperature reported in the past `
              + `${latest.recent_days} days.</div><div class="bt-foot">${dataLinks(s)}</div></div>`;
@@ -745,6 +845,7 @@ function btSetMode(m) {
     });
     map.closePopup();
     setUrl(null);
+    if (timeUi) timeUi.reset();  // each view has its own time steps: back to now
     renderCbar();
     const [f, c] = m === 'sea' ? ['ft', 'm'] : ['°F', '°C'];
     document.querySelector('.bt-units [data-unit="f"]').textContent = f;
@@ -763,7 +864,7 @@ function seaPopupHtml(s) {
     const e = sea[s.id] || {};
     const head = `<h2 class="bt-name" id="bt-name-${s.id}" tabindex="-1">${s.name}</h2>`
                + `<div class="bt-sub">${s.level_only ? 'Tide station (water level only)' : 'Tide station'} · NOAA CO-OPS ${s.coops}`
-               + `${place(s) ? ` · ${place(s)}` : ''}</div>`;
+               + `${place(s) ? ` · ${place(s)}` : ''}</div>` + cardTimeNote();
     const links = `<span>Data: ${link(`https://tidesandcurrents.noaa.gov/waterlevels.html?id=${s.coops}`, `CO-OPS ${s.coops}`)}`
                 + ` · ${link('https://tidesandcurrents.noaa.gov/inundationdb/', 'NOAA Coastal Inundation Dashboard')}</span>`;
     if (e.excess_m == null) {  // no readings, or none recent enough to describe the water now (sealevel.py's STALE_HOURS)
@@ -1163,7 +1264,12 @@ function openStation(id) {
         // a card taller than the map would pan the map until the station is off screen (far north for
         // Washington): cap its height so it scrolls inside, leaving room for the controls along the top
         // (autoPanPaddingTopLeft) and the station's marker below the card
-        markers[id].getPopup().options.maxHeight = Math.max(200, map.getSize().y - 210);  // 95 top padding, 40 card margins, tip, marker
+        // and clear of the time slider along the bottom
+        const slider = document.querySelector('.bt-time:not([hidden])');
+        const below = slider ? map.getContainer().getBoundingClientRect().bottom - slider.getBoundingClientRect().top : 0;
+        const pop = markers[id].getPopup();
+        pop.options.maxHeight = Math.max(200, map.getSize().y - 210 - below);  // 95 top padding, 40 card margins, tip, marker
+        pop.options.autoPanPaddingBottomRight = [10, 10 + below];
         markers[id].openPopup();
     }
 }
@@ -1216,7 +1322,7 @@ function markerHtml(s, inList = false) {
 // reduced, like the heatwave ring); hollow when there's no reading. A white edge like the temperature markers,
 // in the flood color when flooding (as a heatwave turns the edge red).
 function seaMarkerHtml(s, inList = false) {
-    const e = (sea && sea[s.id]) || {}, r = 8, join = 'stroke-linejoin="round"';
+    const e = seaAt(s), r = 8, join = 'stroke-linejoin="round"';
     const rings = e.flood && !inList ? LEVELS.indexOf(e.flood) + 1 : 0;
     let svg = [1, 2, 3].slice(0, rings).map(n =>
         shape('tide', r, `class="pulse r${n}" fill="none" stroke="${FLOOD[e.flood][1]}" stroke-width="2.5"`)).join('');
@@ -1228,16 +1334,25 @@ function seaMarkerHtml(s, inList = false) {
     return `<svg class="bt-mk" aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24">${svg}</svg>`;
 }
 const markerIcon = s => L.divIcon({className: 'bt-mk-wrap', iconSize: [28, 28], popupAnchor: [0, -8], tooltipAnchor: [10, 0],
-                                   html: mode === 'sea' ? seaMarkerHtml(s) : markerHtml(s)});
+                                   html: mode === 'sea' ? seaMarkerHtml(s) : markerHtml(atTime(s))});
 // a marker's tooltip, and (with commas, which read better than '·') its name for screen readers
 function markerLabel(s) {
     if (mode === 'sea') {
-        const e = (sea && sea[s.id]) || {};
+        const e = seaAt(s);
+        if (e.past) return e.excess_m == null ? `${s.name}: no water level readings that day`
+            : `${s.name}: water ${plainLength(Math.abs(e.excess_m))} ${e.excess_m >= 0 ? 'above' : 'below'} the predicted tide (daily mean)`
+              + (e.flood ? ` · ${FLOOD[e.flood][0]}` : '');
         if (e.excess_m == null) return e.time_ms ? `${s.name}: no current water level reading · last reading ${relAge(e.time_ms)}`
                                                  : `${s.name}: no water level in the past ${seaLatest.recent_days} days`;
         return `${s.name}: water ${plainLength(Math.abs(e.excess_m))} ${e.excess_m >= 0 ? 'above' : 'below'} the predicted tide`
              + (Date.now() - e.time_ms > 3 * 3.6e6 ? ` · last reading ${relAge(e.time_ms)}` : '')
              + (e.flood ? ` · ${FLOOD[e.flood][0]}` : '');
+    }
+    if (tpos != null && TL.temp) {  // a past day: its daily mean
+        const p = atTime(s);
+        return (p.last_c == null ? `${s.name}: no water temperature that day`
+                                 : `${s.name}: ${(p.last_c * 9 / 5 + 32).toFixed(1)} °F / ${p.last_c.toFixed(1)} °C (daily mean)`)
+             + (p.status === 'heatwave' ? ' · Suspected marine heatwave' : '');
     }
     const has = s.last_c != null, old = has && Date.now() - s.last_time_ms > 864e5;  // over a day: say how old
     return (has && !isStale(s) ? `${s.name}: ${(s.last_c * 9 / 5 + 32).toFixed(1)} °F / ${s.last_c.toFixed(1)} °C`
@@ -1264,10 +1379,11 @@ const ListCtrl = L.Control.extend({
     onAdd: () => {
         const div = L.DomUtil.create('div', 'bt-list bt-font collapsed');
         listDiv = div;
-        const seaOf = s => (sea && sea[s.id]) || {};
+        const seaOf = seaAt;
         // sort keys: the column headers; dir 1 is each column's natural order (north to south, A-Z, warmest
         // first, largest anomaly first, highest water first, worst flooding first), -1 reverses it; no-data rows stay last
-        const order = {loc: s => -s.lat, name: s => s.name, temp: s => (isStale(s) ? null : -s.last_c), anom: s => -s.anom_c,
+        const order = {loc: s => -s.lat, name: s => s.name, temp: s => (isStale(atTime(s)) ? null : -atTime(s).last_c),
+                       anom: s => -atTime(s).anom_c,
                        excess: s => (seaOf(s).excess_m == null ? null : -seaOf(s).excess_m),
                        flood: s => (seaOf(s).excess_m == null ? null : -(LEVELS.indexOf(seaOf(s).flood) + 1))};
         let sortKey = 'loc', sortDir = 1;
@@ -1298,7 +1414,7 @@ const ListCtrl = L.Control.extend({
                       + `<tr><th scope="row" class="bt-label" id="bt-l-reporting">Stations reporting</th><td class="bt-value" id="bt-n-reporting">–</td></tr>`
                       + `<tr><th scope="row" class="bt-label" id="bt-l-alert">Suspected marine heatwaves</th>`
                       + `<td class="bt-value" id="bt-n-heatwave" style="color:#FF5A6A;">–</td></tr>`
-                      + `<tr><th scope="row" class="bt-label">Updated</th><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>`
+                      + `<tr><th scope="row" class="bt-label" id="bt-l-updated">Updated</th><td class="bt-value" id="bt-updated" style="color:var(--silver);">–</td></tr>`
                       + `</table></div>`
                       + `<div class="bt-states" role="group" aria-label="Show stations in">`
                       + Object.entries(STATES).map(([k, label]) => `<button data-state="${k}" aria-pressed="${k === shownState}">${label} <span class="n"></span></button>`).join('')
@@ -1311,6 +1427,7 @@ const ListCtrl = L.Control.extend({
         const sr = text => `<span class="bt-sr">${text}</span>`;
         const none = `<span aria-hidden="true">–</span>${sr('none')}`;
         const tempCells = s => {
+            s = atTime(s);
             const hw = s.status === 'heatwave';
             return (s.last_c == null ? `<td class="c-temp none">no data</td>`
                     : `<td class="c-temp${isStale(s) ? ' none' : ''}">${bothUnits(s.last_c)}`
@@ -1335,7 +1452,7 @@ const ListCtrl = L.Control.extend({
                 b.querySelector('.n').textContent = stationList.filter(s => hasTemp(s) && (b.dataset.type === 'all' || s.type === b.dataset.type) && inState(s)).length;
             });
             div.querySelector('.bt-stations tbody').innerHTML = stationList.filter(shown).sort(compare).map(s =>
-                `<tr data-id="${s.id}"><td class="c-sym">${mode === 'sea' ? seaMarkerHtml(s, true) : markerHtml(s, true)}`
+                `<tr data-id="${s.id}"><td class="c-sym">${mode === 'sea' ? seaMarkerHtml(s, true) : markerHtml(atTime(s), true)}`
                 + `${sr(TYPE_ONE[s.type])}</td>`
                 + `<th scope="row" class="c-name"><button class="bt-row-btn">${s.name}</button></th>`
                 + `<td class="c-loc">${s.lat.toFixed(1)}°N</td>`
@@ -1356,7 +1473,10 @@ const ListCtrl = L.Control.extend({
         const fit = () => {
             const rows = div.querySelector('.bt-list-rows'), box = map.getContainer().getBoundingClientRect();
             const rowsTop = div.getBoundingClientRect().top + rows.offsetTop;  // ignores the panel's own scrolling
-            const room = box.bottom - rowsTop - div.querySelector('.bt-list-foot').offsetHeight - 14;
+            // stop above the time slider where they'd overlap
+            const slider = document.querySelector('.bt-time:not([hidden])'), sb = slider && slider.getBoundingClientRect();
+            const bottom = sb && sb.left < div.getBoundingClientRect().right ? sb.top - 8 : box.bottom;
+            const room = bottom - rowsTop - div.querySelector('.bt-list-foot').offsetHeight - 14;
             const tight = room < 160;
             div.classList.toggle('tight', tight);
             rows.style.maxHeight = tight ? 'none' : `${room}px`;
@@ -1400,18 +1520,25 @@ const ListCtrl = L.Control.extend({
                 q('bt-n-heatwave').textContent = tides.filter(s => seaOf(s).flood).length;
                 q('bt-updated').textContent = pacific(seaLatest.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
             } else {
+                const at = atTime;
                 q('bt-l-reporting').textContent = 'Stations reporting';
-                const here = stationList.filter(s => hasTemp(s) && inState(s));
+                const here = stationList.filter(s => hasTemp(s) && inState(s)).map(at);
                 q('bt-n-reporting').textContent = `${here.filter(s => s.last_c != null && !isStale(s)).length} of ${here.length}`;
                 q('bt-l-alert').textContent = 'Suspected marine heatwaves';
                 q('bt-n-heatwave').textContent = here.filter(s => s.status === 'heatwave').length;
                 q('bt-updated').textContent = pacific(latest.generated_ms, {hour: 'numeric', minute: '2-digit', timeZoneName: 'short'});
             }
+            q('bt-l-updated').textContent = 'Updated';
+            if (tpos != null) {  // the counts are for the time the slider shows
+                q('bt-l-updated').textContent = 'Showing';
+                q('bt-updated').textContent = tlLabel() + (mode === 'sea' ? '' : ' (daily mean)');
+            }
         };
         // rebuilt for the view showing; a sort by a column the view doesn't have goes back to north to south
         div.refresh = () => {
             if (!['name', 'loc', ...COLS[mode].map(c => c[0])].includes(sortKey)) { sortKey = 'loc'; sortDir = 1; }
-            div.querySelector('.bt-stations caption').textContent = CAPTION[mode];
+            div.querySelector('.bt-stations caption').textContent = CAPTION[mode]
+                + (tpos == null ? '' : ` Showing ${tlLabel()}${mode === 'sea' ? '' : ', daily means'}, not the latest readings.`);
             heads();
             fill();
             fillSummary();
@@ -1536,6 +1663,8 @@ async function refreshData() {
         }
     } catch (e) { /* as above */ }
     if (changed) {
+        await loadTimelines();
+        if (timeUi) timeUi.reset(true);  // keeps the time shown if it's still in the slider's range
         stationList.forEach(placeMarker);
         if (listDiv) listDiv.refresh();
     }
@@ -1545,9 +1674,203 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden && Date.now() - lastCheck > 5 * 60e3) refreshData();
 });
 
+
+// ---- time slider ------------------------------------------------------------
+// Steps through the past 30 days, a day at a time: temperature as daily means (which heatwaves are defined on;
+// hourly readings swing with the sun and tides), tides as the day's mean water vs. the predicted tide and the
+// highest flood level reached. The markers, tooltips, station table and counts follow
+// it; cards keep the latest readings, with a line on their charts at the time shown. Play stays off until
+// pressed and can be paused; while it plays, marker rings hold still. The speed choice is remembered in this browser.
+const SPEEDS = {slow: ['Slow', 1], medium: ['Medium', 2], fast: ['Fast', 5]};  // days per second
+let timeUi = null;
+function loadTimelines() {
+    const get = f => fetch(`data/${f}`, {cache: 'no-cache'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    return Promise.all([get('timeline.json'), get('sealevel_timeline.json')]).then(([a, b]) => {
+        if (a && a.days_ms && a.days_ms.length) TL.temp = a;
+        if (b && b.days_ms && b.days_ms.length) TL.sea = b;
+    });
+}
+// the thin line on the cards' charts
+Chart.register({id: 'btTimeMark', afterDatasetsDraw(c) {
+    const ms = tlMarkMs(), x = c.scales.x, a = c.chartArea;
+    if (ms == null || !x) return;
+    const px = x.getPixelForValue(ms);
+    if (px < a.left || px > a.right) return;
+    const ctx = c.ctx;
+    ctx.save();
+    ctx.strokeStyle = '#1E0253';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px, a.top);
+    ctx.lineTo(px, a.bottom);
+    ctx.stroke();
+    ctx.restore();
+}});
+function buildTimeUi() {
+    const box = map.getContainer();
+    const div = L.DomUtil.create('div', 'bt-time bt-font', box);
+    div.setAttribute('role', 'group');
+    div.setAttribute('aria-label', 'Time shown on the map');
+    div.innerHTML = `<div class="bt-time-ctrl"><div class="bt-split">`
+        + `<button class="bt-play" aria-label="Play"><span aria-hidden="true">▶</span><span class="bt-play-lbl"> Play</span></button>`
+        + `<button class="bt-spd" aria-haspopup="true" aria-expanded="false" aria-controls="bt-spd-menu"></button>`
+        + `<div class="bt-spd-menu" id="bt-spd-menu" role="menu" aria-label="Play speed" hidden>`
+        + `<div class="h" aria-hidden="true">Play speed</div>`
+        + Object.entries(SPEEDS).map(([k, [label]]) => `<button role="menuitemradio" data-speed="${k}" tabindex="-1">${label}</button>`).join('')
+        + `</div></div>`
+        + `<button class="bt-step" data-step="-1" aria-label="Previous day">‹</button><button class="bt-step" data-step="1" aria-label="Next day">›</button></div>`
+        + `<div class="bt-time-date"><b class="bt-tl-when"></b> <span class="bt-tl-what"></span> <button class="bt-now-link" hidden>Back to now</button></div>`
+        + `<input type="range" class="bt-range" min="0" step="1">`
+        + `<div class="bt-ticks" aria-hidden="true"></div>`
+        + `<div class="bt-time-ends" aria-hidden="true"><span class="bt-t0"></span><span class="bt-tmid"></span><b>Now</b></div>`
+        + `<div class="bt-time-row2"><span class="bt-short"></span><button class="bt-now-link" hidden>Back to now</button></div>`;
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+    const $ = q => div.querySelector(q);
+    const range = $('.bt-range'), playBtn = $('.bt-play'), spdBtn = $('.bt-spd'), menu = $('.bt-spd-menu');
+    const items = [...menu.querySelectorAll('button')];
+    let speed = 'medium', timer = null, sayTimer = null;
+    try { const v = localStorage.getItem('bt-speed'); if (SPEEDS[v]) speed = v; } catch (e) { /* storage blocked */ }
+    const n = () => tlCount();  // past steps; the slider's last value (n) is now
+    const say = text => { document.getElementById('bt-announce').textContent = text; };
+    // what a screen reader hears after a change: the time and the counts it shows
+    const summary = () => {
+        const here = stationList.filter(s => inView(s) && inState(s));
+        if (mode === 'sea') {
+            const e = here.map(seaAt);
+            return `${tlLabel()}: ${e.filter(x => x.excess_m != null).length} of ${e.length} tide stations reporting, `
+                 + `${e.filter(x => x.flood).length} at a flood level.`;
+        }
+        const p = here.map(atTime);
+        return `${tlLabel()}${tpos == null ? ', latest readings' : ', daily means'}: `
+             + `${p.filter(x => x.last_c != null && !isStale(x)).length} of ${p.length} stations reporting, `
+             + `${p.filter(x => x.status === 'heatwave').length} suspected marine heatwaves.`;
+    };
+    const sayLater = () => { clearTimeout(sayTimer); sayTimer = setTimeout(() => say(summary()), 700); };
+    // labels, slider position and the card notes for the time shown
+    const label = () => {
+        const past = tpos != null, sea = mode === 'sea';
+        range.value = past ? tpos : n();
+        range.setAttribute('aria-valuetext', past ? tlLabel() : 'Now, latest readings');
+        $('.bt-tl-when').textContent = tlLabel();
+        $('.bt-tl-what').textContent = !past ? '· latest readings' : '· daily mean';
+        $('.bt-short').innerHTML = past ? `<b>${tlLabel()}</b> · daily mean` : '<b>Now</b> · latest readings';
+        div.querySelectorAll('.bt-now-link').forEach(b => { b.hidden = !past; });
+        document.querySelectorAll('.bt-time-card').forEach(p => { p.hidden = !past; p.textContent = past ? cardTimeText() : ''; });
+    };
+    // show step i (n = now) on the map, the list and the cards' charts
+    const show = i => {
+        i = Math.max(0, Math.min(n(), i));
+        tpos = i >= n() ? null : i;
+        label();
+        stationList.forEach(placeMarker);
+        if (listDiv) listDiv.refresh();
+        [charts, seaCharts, seaDiffCharts].forEach(o => Object.values(o).forEach(c => { if (c.canvas && c.canvas.isConnected) c.draw(); }));
+    };
+    const cur = () => (tpos == null ? n() : tpos);
+    const setPlaying = on => {
+        clearInterval(timer);
+        timer = null;
+        box.classList.toggle('bt-playing', on);  // marker rings hold still while it plays
+        playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
+        playBtn.innerHTML = on ? '<span aria-hidden="true">❚❚</span><span class="bt-play-lbl"> Pause</span>'
+                               : '<span aria-hidden="true">▶</span><span class="bt-play-lbl"> Play</span>';
+        if (!on) return;
+        timer = setInterval(() => {
+            const next = cur() + 1;
+            show(next);
+            if (next >= n()) { setPlaying(false); say(summary()); }  // stops at now
+        }, 1000 / SPEEDS[speed][1]);
+    };
+    const stop = () => { if (timer) setPlaying(false); };
+    playBtn.onclick = () => {
+        if (timer) { setPlaying(false); say(summary()); return; }
+        if (tpos == null) show(0);  // from the start of the 30 days
+        setPlaying(true);
+    };
+    div.querySelectorAll('.bt-step').forEach(b => {
+        b.onclick = () => { stop(); show(cur() + Number(b.dataset.step)); sayLater(); };
+    });
+    range.oninput = () => { stop(); show(Number(range.value)); sayLater(); };
+    div.querySelectorAll('.bt-now-link').forEach(b => {
+        b.onclick = () => { stop(); show(n()); range.focus(); say(summary()); };
+    });
+    // the speed menu: a menu button with a radio choice; arrow keys move, Escape closes
+    const markSpeed = () => {
+        spdBtn.innerHTML = `${SPEEDS[speed][0]} <span aria-hidden="true">▾</span>`;
+        spdBtn.setAttribute('aria-label', `Play speed: ${SPEEDS[speed][0]}`);
+        items.forEach(b => b.setAttribute('aria-checked', String(b.dataset.speed === speed)));
+    };
+    const openMenu = open => {
+        menu.hidden = !open;
+        spdBtn.setAttribute('aria-expanded', String(open));
+        if (open) items.find(b => b.dataset.speed === speed).focus();
+    };
+    spdBtn.onclick = () => openMenu(menu.hidden);
+    items.forEach(b => {
+        b.onclick = () => {
+            speed = b.dataset.speed;
+            try { localStorage.setItem('bt-speed', speed); } catch (e) { /* storage blocked */ }
+            markSpeed();
+            openMenu(false);
+            spdBtn.focus();
+            if (timer) setPlaying(true);  // the new speed right away
+        };
+    });
+    menu.addEventListener('keydown', e => {
+        const k = items.indexOf(document.activeElement);
+        const go = j => { e.preventDefault(); items[(j + items.length) % items.length].focus(); };
+        if (e.key === 'ArrowDown') go(k + 1);
+        else if (e.key === 'ArrowUp') go(k - 1);
+        else if (e.key === 'Home') go(0);
+        else if (e.key === 'End') go(items.length - 1);
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); openMenu(false); spdBtn.focus(); }
+        else if (e.key === 'Tab') openMenu(false);
+    });
+    document.addEventListener('click', e => { if (!menu.hidden && !div.querySelector('.bt-split').contains(e.target)) openMenu(false); });
+    // the slider's room: the list stops above it, and on narrow screens the zoom buttons sit above it
+    const place = () => {
+        box.style.setProperty('--bt-time-h', `${div.hidden ? 0 : box.getBoundingClientRect().bottom - div.getBoundingClientRect().top}px`);
+        box.classList.toggle('bt-has-time', !div.hidden);
+        if (listDiv) listDiv.refresh();
+    };
+    window.addEventListener('resize', place);
+    markSpeed();
+    timeUi = {
+        // for the view showing: its steps, now, and hidden until its timeline has loaded. With keep, the time shown
+        // stays if the refreshed timeline still has it.
+        reset(keep) {
+            const t = keep && tpos != null ? tlStart(tpos) : null;
+            stop();
+            openMenu(false);
+            tpos = null;
+            div.hidden = !TL[mode];
+            if (TL[mode]) {
+                range.max = n();
+                $('.bt-t0').textContent = tlDay(tlStart(0), {month: 'short', day: 'numeric'});
+                $('.bt-tmid').textContent = `Daily · past ${n() + 1} days`;  // with today
+                range.setAttribute('aria-label', 'Day shown on the map');
+                // a tick a day, longer each week back from now
+                const ticks = [];
+                for (let k = n(); k >= 0; k--) ticks.push(`<i class="${(n() - k) % 7 === 0 ? 'wk' : ''}" style="left:${(100 * k / n()).toFixed(2)}%"></i>`);
+                $('.bt-ticks').innerHTML = ticks.join('');
+                if (t != null) {
+                    const i = TL[mode].days_ms.indexOf(t);
+                    if (i >= 0) tpos = i;
+                }
+            }
+            label();
+            place();
+        },
+    };
+    timeUi.reset();
+    map.fitBounds(HOME, {paddingBottomRight: [0, div.hidden ? 0 : box.getBoundingClientRect().bottom - div.getBoundingClientRect().top]});
+}
+
 // the station list waits for the sea level data too (seaReady settles either way), which brings the gauges
 // that measure only water level: tide stations shown in the sea level view alone
-Promise.all([fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()), seaReady]).then(([data]) => {
+// the time slider's two small files (about 40 KB together) come with it, so the slider appears with the map
+Promise.all([fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()), seaReady, loadTimelines()]).then(([data]) => {
     latest = data;
     markStale(data);
     const levelOnly = sea ? seaLatest.stations.filter(e => e.level_only).map(e => ({
@@ -1591,6 +1914,7 @@ Promise.all([fetch('data/latest.json', {cache: 'no-cache'}).then(r => r.json()),
         markers[s.id] = m;
     });
     map.addControl(new ListCtrl());  // also holds the summary counts
+    buildTimeUi();
     // shareable links: ?view=sea opens the map in the sea level view, ?station=46026 opens that station's
     // card (after the view switch, which closes cards). The station comes off the address until the card
     // opens and puts it back, so on a phone Back closes the sheet and leaves a plain address.
