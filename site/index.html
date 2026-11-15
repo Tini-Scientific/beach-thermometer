@@ -91,7 +91,7 @@ body { display: flex; flex-direction: column; }
 .bt-a11y-link { color: var(--muted); font-size: 10.5px; white-space: nowrap; }  /* lines wrap between links, not inside one */
 .bt-a11y-link:hover { color: white; }
 .bt-a11y-link:focus-visible { outline: 2px solid white; outline-offset: 2px; border-radius: 2px; }
-.bt-sources { display: none; }  /* phones only: shows and hides the "Data by" list */
+.bt-more { display: none; }  /* phones and small windows only: shows and hides the description, credits and links */
 .bt-font { font-family: 'Montserrat', 'Helvetica Neue', sans-serif; }
 
 /* summary at the top of the station panel: title, counts, update time */
@@ -329,32 +329,58 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
     .bt-page-header p { font-size: 12px; margin-top: 3px; }
     .bt-page-header { flex-wrap: wrap; gap: 6px; }
     .bt-exp { font-size: 13px; margin-left: 6px; }
-    .bt-credits { font-size: 9px; width: 100%; }
-    .bt-credits .by { flex-direction: row; align-items: center; gap: 6px; padding-left: 0; border-left: none; }
-    .bt-credits .by .bt-credit-label { margin: 0; }
-    .bt-credits { flex-wrap: wrap; align-items: center; justify-content: space-between; row-gap: 8px; }
-    .bt-credits .data { display: none; }  /* no room on phones until opened with the Data sources button */
-    .bt-credits.open .data { display: block; order: 3; flex-basis: 100%; }
-    .bt-credits .data .bt-credit-label { display: none; }  /* the button already says it */
-    .bt-sources {
-        display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 10px; font-weight: 600;
-        letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); cursor: pointer;
-        background: none; border: 1px solid var(--hairline); border-radius: 6px; padding: 6px 10px;
-    }
-    .bt-sources::after { content: '▾'; }
-    .bt-sources[aria-expanded="true"]::after { content: '▴'; }
-    .bt-sources:focus-visible { outline: 2px solid white; outline-offset: 2px; }
-    .bt-credits img { height: 20px; }
-    .bt-page-links { margin: 0 0 0 4px; }
     .bt-value { font-size: 13px; }
     .bt-name { font-size: 16px; }
     .bt-temp { font-size: 20px; }
 }
 
+/* phones, and small windows such as a desktop zoomed in: one line, the title and an About button that opens
+   the description, data sources, Tini logo and links, with links big enough to tap */
+@media (max-width: 540px), (max-width: 1000px) and (max-height: 560px) {
+    .bt-page-header { flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 10px; padding: 8px 10px 8px 12px; }
+    .bt-page-title { display: contents; }
+    .bt-page-header h1 { flex: 1 1 0; min-width: 0; font-size: 18px; }
+    .bt-exp { font-size: 11.5px; margin-left: 4px; }
+    .bt-page-header p { display: none; flex-basis: 100%; margin: 0; font-size: 13px; max-width: none; order: 2; }
+    .bt-more { order: 1; }
+    .bt-credits { display: none; order: 3; flex-basis: 100%; flex-direction: column; gap: 12px; font-size: 11px; padding-bottom: 4px; }
+    .bt-page-header.open p { display: block; }
+    .bt-page-header.open .bt-credits { display: flex; }
+    .bt-more {
+        display: inline-flex; align-items: center; gap: 5px; flex: none; min-height: 40px; padding: 0 10px;
+        font: inherit; font-size: 14px; font-weight: 600; color: white; cursor: pointer;
+        background: rgba(255,255,255,0.06); border: 1px solid var(--hairline); border-radius: 8px;
+    }
+    .bt-more::after { content: '▾'; font-size: 12px; }
+    .bt-more[aria-expanded="true"]::after { content: '▴'; }
+    .bt-more:hover { background: rgba(255,255,255,0.12); }
+    .bt-more:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+    .bt-credit-box { max-width: none; font-size: 11.5px; }
+    .bt-credits .by { padding: 12px 0 0; border-left: none; border-top: 1px solid var(--hairline); }
+    .bt-credits img { height: 26px; margin-bottom: 4px; }
+    .bt-page-links { display: flex; flex-direction: column; margin-top: 4px; }
+    .bt-page-links .sep { display: none; }
+    .bt-page-links .bt-a11y-link { display: flex; align-items: center; min-height: 44px; font-size: 15px; color: white;
+        border-bottom: 1px solid var(--hairline); text-underline-offset: 3px; }
+    .bt-page-links .bt-a11y-link:last-child { border-bottom: none; }
+    /* the legend: a smaller color bar; its title opens the key (heatwave ring or flood rings) */
+    .bt-cbar { padding: 4px 8px 2px; }
+    .bt-cbar-grad { height: 10px; }
+    .bt-cbar-ticks { height: 13px; }
+    .bt-cbar-ticks span { top: 1px; }
+    .bt-cbar.closed .bt-cbar-key, .bt-cbar.closed .bt-flood-key { display: none; }
+}
+button.bt-cbar-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%;
+    background: none; border: none; padding: 4px 0; margin: 0 0 2px; font-family: inherit; text-align: left; cursor: pointer; }
+button.bt-cbar-title::after { content: '▾'; font-size: 11px; color: var(--fandango); }
+button.bt-cbar-title[aria-expanded="true"]::after { content: '▴'; }
+button.bt-cbar-title:focus-visible { outline: 2px solid var(--fandango); outline-offset: 1px; border-radius: 2px; }
+
+
 /* ---- time slider: the map over the past 30 days, a day at a time; its last step is now ---- */
 .bt-time {
-    position: absolute; z-index: 1000; bottom: 20px; left: 50%; transform: translateX(-50%);
-    width: min(500px, calc(100% - 440px)); min-width: 380px; box-sizing: border-box;
+    position: absolute; z-index: 1000; bottom: 20px; left: 10px;  /* lower left, clear of the zoom and base-map buttons */
+    width: min(500px, calc(100% - 280px)); min-width: 380px; box-sizing: border-box;
     background: var(--ink-panel); border: 1px solid var(--hairline); border-radius: 10px; color: white;
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 3px 10px rgba(0,0,0,0.45);
     padding: 6px 12px 5px; display: grid; grid-template-columns: auto 1fr; column-gap: 10px;
@@ -369,7 +395,8 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
 .bt-split { display: flex; position: relative; margin-right: 3px; }
 .bt-split > button { background: var(--fandango); border-color: var(--fandango); }
 .bt-split > button:hover { background: #B02F8D; }
-.bt-split .bt-play { border-radius: 5px 0 0 5px; min-width: 62px; text-align: left; }
+.bt-split .bt-play { border-radius: 5px 0 0 5px; min-width: 66px; display: inline-flex; align-items: center; gap: 5px; }
+.bt-ico { width: 11px; height: 11px; flex: none; display: block; }
 .bt-split .bt-spd { border-radius: 0 5px 5px 0; border-left: 1px solid rgba(255,255,255,0.5); padding: 0 7px; font-size: 11px; white-space: nowrap; }
 .bt-time button:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 .bt-spd-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 1; background: white; color: var(--ink);
@@ -409,7 +436,8 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
         grid-template-areas: "ctrl range" "row2 row2"; column-gap: 8px; }
     .bt-time-ctrl > button, .bt-time-date, .bt-ticks, .bt-time-ends { display: none; }
     .bt-split > button { height: 32px; }
-    .bt-split .bt-play { min-width: 34px; padding: 0; text-align: center; }
+    .bt-split .bt-play { min-width: 36px; padding: 0; justify-content: center; }
+    .bt-ico { width: 13px; height: 13px; }
     .bt-play-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .bt-range { margin: 0; align-self: center; height: 32px; }
     .bt-time-row2 { grid-area: row2; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
@@ -426,29 +454,35 @@ body.sea .bt-cbar-title { white-space: normal; }  /* its longer title wraps, eve
 <header class="bt-page-header bt-font">
   <div class="bt-page-title">
     <h1><span class="bt-title-text">Beach Thermometer</span> <a class="bt-exp" href="methods.html">Experimental</a></h1>
-    <p>Hourly water temperatures and water levels from buoys, moorings, tide gauges, and shore stations along the coasts of Washington, Oregon, and California, together on one map to track marine heatwaves and high water.</p>
+    <p id="bt-desc">Hourly water temperatures and water levels from buoys, moorings, tide gauges, and shore stations along the coasts of Washington, Oregon, and California, together on one map to track marine heatwaves and high water.</p>
   </div>
-  <div class="bt-credits">
-    <button class="bt-sources" aria-expanded="false" aria-controls="bt-data-by">Data sources</button>
-    <div class="data" id="bt-data-by">
+  <button class="bt-more" aria-expanded="false" aria-controls="bt-desc bt-credits">About</button>
+  <div class="bt-credits" id="bt-credits">
+    <div class="data">
       <div class="bt-credit-label">Data by</div>
       <div class="bt-credit-box">NOAA (NDBC, CO-OPS, U.S. IOOS) · Scripps Institution of Oceanography (CDIP) · NANOOS · University of Washington · Oregon State University · NSF Ocean Observatories Initiative · MBARI · UC Davis Bodega Marine Laboratory · SCCOOS · CeNCOOS · Cal Poly Humboldt · Cal Poly San Luis Obispo · UC Santa Cruz · Moss Landing Marine Laboratories · Monterey Bay Aquarium · SFSU Romberg Tiburon Center · Exploratorium</div>
     </div>
     <div class="by">
       <div class="bt-credit-label">Dashboard by</div>
       <img src="assets/logo.png" alt="Tini Scientific" width="504" height="108">
-      <div class="bt-page-links"><a class="bt-a11y-link" href="methods.html">Methods</a> · <a class="bt-a11y-link" href="accessibility.html">Accessibility</a> · <a class="bt-a11y-link" href="https://buttondown.com/beachthermometer">Get the daily email</a></div>
+      <div class="bt-page-links"><a class="bt-a11y-link" href="methods.html">Methods</a><span class="sep"> · </span><a class="bt-a11y-link" href="accessibility.html">Accessibility</a><span class="sep"> · </span><a class="bt-a11y-link" href="https://buttondown.com/beachthermometer">Get the daily email</a></div>
     </div>
   </div>
 </header>
 <main id="map" aria-label="Map of water temperature stations"></main>
 <div id="bt-announce" class="bt-sr" aria-live="polite"></div>  <!-- read out by screen readers, e.g. a unit switch -->
 <script>
-document.querySelector('.bt-sources').onclick = e => {
-    const open = e.currentTarget.closest('.bt-credits').classList.toggle('open');
-    e.currentTarget.setAttribute('aria-expanded', open);
-    window.dispatchEvent(new Event('resize'));  // the taller header shrinks the map
-};
+// phones and small windows: the description, credits and links fold under the About button
+(() => {
+    const btn = document.querySelector('.bt-more'), head = btn.closest('.bt-page-header');
+    const set = open => {
+        head.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        window.dispatchEvent(new Event('resize'));  // the header's height changes the map's
+    };
+    btn.onclick = () => set(!head.classList.contains('open'));
+    head.addEventListener('keydown', e => { if (e.key === 'Escape' && head.classList.contains('open')) { set(false); btn.focus(); } });
+})();
 // ---- settings -------------------------------------------------------------
 // suspected marine heatwaves are red (marker and status text); everything else keeps the normal colors
 const COLORS = {fandango: '#C637A0', federalBlue: '#1E0253', heatwave: '#D7263D', text: '#555', noData: '#9E9E9E', noDataEdge: '#6E6E6E'};
@@ -1114,7 +1148,14 @@ const ModeCtrl = L.Control.extend({
 map.addControl(new ModeCtrl());
 // color bar for the marker fill, ticked in whichever unit is showing
 let cbarDiv = null;
+// phones and small windows: the legend's title is a button that shows or hides its key (closed to start)
+const smallMQ = matchMedia('(max-width: 540px), (max-width: 1000px) and (max-height: 560px)');
+let keyOpen = false;
+const cbarTitle = text => (smallMQ.matches
+    ? `<button class="bt-cbar-title" aria-expanded="${keyOpen}" aria-controls="bt-cbar-key"><span>${text}</span></button>`
+    : `<div class="bt-cbar-title">${text}</div>`);
 function renderCbar() {
+    cbarDiv.classList.toggle('closed', smallMQ.matches && !keyOpen);
     const ticks = (vals, pos, cls, sign) => `<div class="bt-cbar-ticks ${cls}">`
         + vals.map(([v, at]) => `<span style="left:${pos(at)}">${sign && v > 0 ? '+' : ''}${v}</span>`).join('') + `</div>`;
     if (mode === 'sea') {
@@ -1124,27 +1165,33 @@ function renderCbar() {
             + [12, 16, 20].slice(0, LEVELS.indexOf(k) + 1).map(r =>
                 shape('tide', r, `fill="none" stroke="${FLOOD[k][1]}" stroke-width="1.5" stroke-linejoin="round"`)).join('')
             + shape('tide', 8, `fill="${seaColor(0.5)}" stroke="${FLOOD[k][1]}" stroke-width="2" stroke-linejoin="round"`) + `</svg>`;
-        cbarDiv.innerHTML = `<div class="bt-cbar-title">Water level vs. predicted tide `
-            + `<span class="bt-metric">(m)</span><span class="bt-imperial">(ft)</span></div>`
+        cbarDiv.innerHTML = cbarTitle(`Water level vs. predicted tide <span class="bt-metric">(m)</span><span class="bt-imperial">(ft)</span>`)
             + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${SEA_COLORS.join(', ')});"></div>`
             + ticks([-0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9].map(m => [m, m]), pos, 'c', true)
             + ticks([-3, -2, -1, 0, 1, 2, 3].map(f => [f, f / FT]), pos, 'f', true)
-            + `<div class="bt-flood-key">` + LEVELS.map(k => `<div>${ring(k)}${FLOOD[k][0]}</div>`).join('') + `</div>`;
+            + `<div class="bt-flood-key" id="bt-cbar-key">` + LEVELS.map(k => `<div>${ring(k)}${FLOOD[k][0]}</div>`).join('') + `</div>`;
         return;
     }
     const [c0, c1] = TEMP_RANGE_C, pos = c => `${(100 * (c - c0) / (c1 - c0)).toFixed(1)}%`;
-    cbarDiv.innerHTML = `<div class="bt-cbar-title">Water temperature `
-        + `<span class="bt-metric">(°C)</span><span class="bt-imperial">(°F)</span></div>`
+    cbarDiv.innerHTML = cbarTitle(`Water temperature <span class="bt-metric">(°C)</span><span class="bt-imperial">(°F)</span>`)
         + `<div class="bt-cbar-grad" style="background:linear-gradient(to right, ${THERMAL.join(', ')});"></div>`
         + ticks([5, 10, 15, 20, 25].map(c => [c, c]), pos, 'c')
         + ticks([40, 50, 60, 70, 80].map(f => [f, (f - 32) * 5 / 9]), pos, 'f')
         // the heatwave signal: a red outline and a pulsing ring (a still ring when motion is reduced)
-        + `<div class="bt-cbar-key"><div>${markerHtml({type: 'cdip', status: 'heatwave', last_c: 17})}Suspected marine heatwave</div></div>`;
+        + `<div class="bt-cbar-key" id="bt-cbar-key"><div>${markerHtml({type: 'cdip', status: 'heatwave', last_c: 17})}Suspected marine heatwave</div></div>`;
 }
 const ColorbarCtrl = L.Control.extend({
     options: {position: 'topright'},
     onAdd: () => {
         cbarDiv = L.DomUtil.create('div', 'bt-cbar leaflet-bar bt-font');
+        L.DomEvent.disableClickPropagation(cbarDiv);
+        cbarDiv.addEventListener('click', e => {
+            if (!e.target.closest('button.bt-cbar-title')) return;
+            keyOpen = !keyOpen;
+            renderCbar();
+            cbarDiv.querySelector('button.bt-cbar-title').focus();
+        });
+        smallMQ.addEventListener('change', renderCbar);
         renderCbar();
         return cbarDiv;
     },
@@ -1683,6 +1730,12 @@ document.addEventListener('visibilitychange', () => {
 // pressed and can be paused; while it plays, marker rings hold still. The speed choice is remembered in this browser.
 const SPEEDS = {slow: ['Slow', 1], medium: ['Medium', 2], fast: ['Fast', 5]};  // days per second
 let timeUi = null;
+// drawn icons, the same on every device (text symbols such as ❚❚ render heavy and uneven on phones)
+const PLAY_ICON = {
+    play: '<svg class="bt-ico" aria-hidden="true" viewBox="0 0 12 12"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>',
+    pause: '<svg class="bt-ico" aria-hidden="true" viewBox="0 0 12 12"><rect x="2.5" y="2" width="2.6" height="8" rx="0.6" fill="currentColor"/>'
+         + '<rect x="6.9" y="2" width="2.6" height="8" rx="0.6" fill="currentColor"/></svg>',
+};
 function loadTimelines() {
     const get = f => fetch(`data/${f}`, {cache: 'no-cache'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
     return Promise.all([get('timeline.json'), get('sealevel_timeline.json')]).then(([a, b]) => {
@@ -1712,7 +1765,7 @@ function buildTimeUi() {
     div.setAttribute('role', 'group');
     div.setAttribute('aria-label', 'Time shown on the map');
     div.innerHTML = `<div class="bt-time-ctrl"><div class="bt-split">`
-        + `<button class="bt-play" aria-label="Play"><span aria-hidden="true">▶</span><span class="bt-play-lbl"> Play</span></button>`
+        + `<button class="bt-play" aria-label="Play">${PLAY_ICON.play}<span class="bt-play-lbl">Play</span></button>`
         + `<button class="bt-spd" aria-haspopup="true" aria-expanded="false" aria-controls="bt-spd-menu"></button>`
         + `<div class="bt-spd-menu" id="bt-spd-menu" role="menu" aria-label="Play speed" hidden>`
         + `<div class="h" aria-hidden="true">Play speed</div>`
@@ -1773,8 +1826,8 @@ function buildTimeUi() {
         timer = null;
         box.classList.toggle('bt-playing', on);  // marker rings hold still while it plays
         playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
-        playBtn.innerHTML = on ? '<span aria-hidden="true">❚❚</span><span class="bt-play-lbl"> Pause</span>'
-                               : '<span aria-hidden="true">▶</span><span class="bt-play-lbl"> Play</span>';
+        playBtn.innerHTML = on ? `${PLAY_ICON.pause}<span class="bt-play-lbl">Pause</span>`
+                               : `${PLAY_ICON.play}<span class="bt-play-lbl">Play</span>`;
         if (!on) return;
         timer = setInterval(() => {
             const next = cur() + 1;
